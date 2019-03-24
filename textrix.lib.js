@@ -5,8 +5,13 @@
 class Textrix {
 
     static randomElement(ary) {
-        return ary[Math.floor(Math.random() * ary.length));
+        return ary[Math.floor(Math.random() * ary.length)];
     }
+
+    static TagChain(options) {
+        return new TagChain(options);
+    }
+
 }
 
 
@@ -17,13 +22,21 @@ class Textrix {
 class TagChain {
 
     constructor(options) {
-        this._cfg           = { };
-        this._cfg.headToIdx = { };
-        this._cfg.idxToHead = [ ];
-        this._cfg.tailToIdx = { };
-        this._cfg.idxToTail = [ ];
-        this._cfg.bag       = [ ];
-        this._cfg.start     = null;
+        this._cfg          = { };
+        this._cfg.tagToIdx = { };
+        this._cfg.idxToTag = [ ];
+
+        this._cfg.links    = [ ];
+        this._cfg.start    = null;
+        this._cfg.maxSize  = 100;
+
+        if(options !== undefined) {
+            if(options.start !== undefined)
+                this.start = options.start;
+            if(options.maxSize !== undefined)
+                this.start = options.start;
+        }
+
     }
 
     //--------------------------------------------------------------------------
@@ -56,48 +69,67 @@ class TagChain {
             }
         }
         if(head.toString === undefined || body.toString === undefined || tail.toString === undefined)
-            throw new Error("Arguments to TagChain.linkAdd must be convertible to strings.";
+            throw new Error("Arguments to TagChain.linkAdd must be convertible to strings.");
 
         head = head.toString();
         body = body.toString();
         tail = tail.toString();
 
-        this._addLinkToBag(head, body, tail);
+        this._addLink(head, body, tail);
+    }
+
+    //--------------------------------------------------------------------------
+    // Adds an array of links at once.
+    //--------------------------------------------------------------------------
+
+    linksAdd(links) {
+        for(var i = 0; i < links.length; i++)
+            this.linkAdd(links[i]);
     }
 
     //--------------------------------------------------------------------------
     // Takes care of all of the bookkeeping involved in adding a link.
     //--------------------------------------------------------------------------
 
-    _addLinkToBag(head, body, tail) {
+    _addLink(head, body, tail) {
 
-        if(this._cfgheadToIdx{head} == undefined) {
-            var headOffset = this._cfgidxToHead.length;
-            this._cfgheadToIdx{head} = headOffset;
-            this._cfgidxToHead[headOffset] = head;
-        }
-        if(this._cfgtailToIdx{tail} == undefined) {
-            var tailOffset = this._cfgidxTotail.length;
-            this._cfgtailToIdx{tail} = tailOffset;
-            this._cfgidxTotail[tailOffset] = tail;
-        }
+        head = head.toString();
+        tail = tail.toString();
 
-        if(this._cfgbag[head] === undefined)
-            this._cfgbag[head] = [ ];
-        if(this._cfgbag[head][tail] === undefined)
-            this._cfgbag[head][tail] = [ ];
+        var headIdx = this._getIdx(head);
+        if(this._cfg.links[headIdx] === undefined)
+            this._cfg.links[headIdx] = [ ];
+        var tailIdx = this._getIdx(tail);
 
-        this._cfgbag[head][tail].push(body);
+        this._cfg.links[headIdx].push([body, tailIdx]);
     }
 
     //--------------------------------------------------------------------------
-    // Accessors for start head.
+    // Retrieves a tag index, creating a new one if necessary.
+    //--------------------------------------------------------------------------
+
+    _getIdx(val) {
+        if(this._cfg.tagToIdx[val] == undefined) {
+            var idx = this._cfg.idxToTag.length;
+            this._cfg.tagToIdx[val] = idx;
+            this._cfg.idxToTag[idx] = val;
+        } else {
+            var idx = this._cfg.tagToIdx[val];
+        }
+
+
+
+        return idx;
+    }
+
+    //--------------------------------------------------------------------------
+    // Accessors for start tag.
     //--------------------------------------------------------------------------
 
     set start(val) {
         if(val.toString === undefined)
             throw new Error("The start symbol for a TagChain must be convertible to a string.");
-        this._cfg.start = val;
+        this._cfg.start = this._getIdx(val);
     }
 
     get start() {
@@ -105,25 +137,39 @@ class TagChain {
     }
 
     //--------------------------------------------------------------------------
-    // Retrieves the array of links whose head and/or tail match the specified
-    // values.
+    // Accessors for maxSize.
     //--------------------------------------------------------------------------
 
-    _getLinks(head = null, tail = null) {
-
+    set maxSize(val) {
+        if(typeof val !== "number" || val < 1)
+            throw new Error("maxSize must be a positive integer.");
+        this._cfg.maxSize = Math.floor(val);
     }
 
+    get maxSize() {
+        return this._cfg.maxSize;
+    }
 
     //--------------------------------------------------------------------------
-    // Verify that the basic conditions are met to generate a chain.
+    // Produces a chain.
     //--------------------------------------------------------------------------
 
-    _startTest() {
+    getChain() {
         if(this._cfg.start === null)
             throw new Error("The start symbol of this TagChain has not been set.");
 
-        // TODO: get count of links whose head == start
+        var chain = [ ];
+        var lookFor = this.start;
 
+        while(this._cfg.links[lookFor] !== undefined && chain.length <= this._cfg.maxSize) {
+            var link = Textrix.randomElement(this._cfg.links[lookFor]);
+            chain.push(link[0]);
+            lookFor = link[1];
+        }
+
+        return chain;
     }
 
 }
+
+module.exports = Textrix;
