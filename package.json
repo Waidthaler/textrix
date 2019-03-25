@@ -23,6 +23,6 @@
   "homepage": "https://github.com/Waidthaler/textrix#readme",
   "dependencies": {
     "ansi-colors": "^3.2.4",
-    "minicle": "^1.0.1"
+    "minicle": "^1.0.4"
   }
 }
