@@ -1,27 +1,47 @@
 //==============================================================================
-// Basically a factory and utility class.
+// Basically a factory class.
 //==============================================================================
 
 class Textrix {
 
-    static randomElement(ary) {
-        return ary[Math.floor(Math.random() * ary.length)];
-    }
-
     static TagChain(options) {
         return new TagChain(options);
+    }
+
+    static SimpleGrammar(options) {
+        return new SimpleGrammar(options);
     }
 
 }
 
 
 //==============================================================================
-//
+// Generic base class for the others, mostly contains utility methods.
 //==============================================================================
 
-class TagChain {
+class TextrixBase {
 
     constructor(options) {
+
+    }
+
+    randomElement(ary) {
+        return ary[Math.floor(Math.random() * ary.length)];
+    }
+
+}
+
+//==============================================================================
+// Constructor of random chains of "links", strings with head and tail markers.
+// Starts with the start marker and randomly adds links that match the tail of
+// the previous link until no more can be added.
+//==============================================================================
+
+class TagChain extends TextrixBase {
+
+    constructor(options) {
+        super(options);
+
         this._cfg          = { };
         this._cfg.tagToIdx = { };
         this._cfg.idxToTag = [ ];
@@ -151,7 +171,7 @@ class TagChain {
     }
 
     //--------------------------------------------------------------------------
-    // Produces a chain.
+    // Produces a random chain.
     //--------------------------------------------------------------------------
 
     getChain() {
@@ -162,7 +182,7 @@ class TagChain {
         var lookFor = this.start;
 
         while(this._cfg.links[lookFor] !== undefined && chain.length <= this._cfg.maxSize) {
-            var link = Textrix.randomElement(this._cfg.links[lookFor]);
+            var link = this.randomElement(this._cfg.links[lookFor]);
             chain.push(link[0]);
             lookFor = link[1];
         }
@@ -171,5 +191,61 @@ class TagChain {
     }
 
 }
+
+
+//==============================================================================
+// The SimpleGrammar class implements a *very* simple and informal
+// transformation grammar which it can use to generate random text. It requires
+// a working text consisting of plain text in which nonterminal symbols are
+// enclosed in square brackets, which cannot be nested. The rules consist of the
+// nonterminals mapped to replacement strings which can contain further
+// nonterminals. Whitespace is used as a token delimiter and basic punctuation
+// is handled somewhat intelligently. (This is currently highly biased to
+// English orthography. If you want it to work better with your language, I am
+// completely open to suggestions.)
+//==============================================================================
+
+class SimpleGrammar extends TextrixBase {
+
+    constructor(options) {
+        super(options);
+
+        this._rules         = [ ];
+        this._text          = [ ];
+        this._maxTokens     = Infinity;
+        this._maxIterations = Infinity;
+        this._currentRule   = null;
+        this._currentSymbol = null;
+
+        if(options.rules !== undefined)
+            this._rules = options.rules;
+
+        if(options.text !== undefined) {
+            if(Array.isArray(options.text)) {
+                this._text = options.text;
+            } else {
+                this._text = this.textParse(options.text);
+            }
+        }
+
+        if(options.maxTokens !== undefined)
+            this._maxTokens = options.maxTokens;
+
+        if(options.maxIterations !== undefined)
+            this._maxIterations = options.maxIterations;
+    }
+
+    //--------------------------------------------------------------------------
+    // Creates a rule specifying a nonterminal symbol and its replacment.
+
+    ruleSet(nonterminal, replacement) {
+        this._rules.push([nonterminal, replacement]);
+    }
+
+    textParse(text) {
+
+    }
+}
+
 
 module.exports = Textrix;
