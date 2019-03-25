@@ -23,3 +23,15 @@ tc.linksAdd(links);
 
 for(var i = 0; i < 10; i++)
     console.log(tc.getChain().join(" "));
+
+//--------------------------------------------------------------
+
+var sg = Textrix.SimpleGrammar();
+
+var text = "I am a little [ware]";
+
+sg.textParse(text);
+sg.ruleSet("ware", [["teapot", 2], ["program", 1]]);
+sg.transform();
+console.log(sg.textFinalize());
+

@@ -207,10 +207,10 @@ class TagChain extends TextrixBase {
 
 class SimpleGrammar extends TextrixBase {
 
-    constructor(options) {
+    constructor(options = { }) {
         super(options);
 
-        this._rules         = [ ];
+        this._rules         = { };
         this._text          = [ ];
         this._maxTokens     = Infinity;
         this._maxIterations = Infinity;
@@ -236,15 +236,106 @@ class SimpleGrammar extends TextrixBase {
     }
 
     //--------------------------------------------------------------------------
-    // Creates a rule specifying a nonterminal symbol and its replacment.
+    // Creates a rule specifying a nonterminal symbol and replacements. The
+    // replacements argument is an array with elements of the form [replacement,
+    // weight].
+    //--------------------------------------------------------------------------
 
-    ruleSet(nonterminal, replacement) {
-        this._rules.push([nonterminal, replacement]);
+    ruleSet(nonterminal, replacements) {
+        if(!Array.isArray(replacements))
+            throw new Error("The replacements argument in ruleSet must be an array of at least one element.");
+        for(var i = 0, sum = 0; i < replacements.length; i++) {
+            // TODO: validation
+            sum += replacements[i][1];
+        }
+        this._rules[nonterminal] = { replacements: replacements, sum: sum };
     }
+
+
+    //--------------------------------------------------------------------------
+    // Given a rule, returns one of the weighted replacements.
+    //--------------------------------------------------------------------------
+
+    getReplacement(nonterminal) {
+        var rule = this._rules[nonterminal];
+        var num  = Math.floor(rule.sum * Math.random());
+        for(var i = 0, sum = 0; i < rule.replacements.length; i++) {
+            if((sum + rule.replacements[i][1]) > num)
+                return rule.replacements[i][0];
+            sum += rule.replacements[i][1];
+        }
+        throw new Error("Overran end of replacements list in getReplacement.");
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Breaks an input text into tokens and stores it in this._text.
+    //--------------------------------------------------------------------------
 
     textParse(text) {
-
+        this._text = text.trim().replace(/n't/g, "#NT#")
+            .replace(/(\S+)'s/g, "$1#APOS#")
+            .replace(/\n/g, " #CR# ")
+            .replace(/([^#\[\]A-Za-z])/g, " $1 ")
+            .replace(/#APOS#/g, "'s")
+            .replace(/#NT#/g, "n't")
+            .split(/\s+/);
     }
+
+    //--------------------------------------------------------------------------
+    // Performs a replacement iteration on the text, returning true if
+    // replacements were made and false otherwise.
+    //--------------------------------------------------------------------------
+
+    rulesApply() {
+        var rcnt = 0;
+        for(var i = 0; i < this._text.length; i++) {
+            if(this._text[i].substr(0, 1) == "[" && this._text[i].substr(-1) == "]") {
+                var replacement = this.getReplacement(this._text[i].substr(1, this._text[i].length - 2));
+                if(Array.isArray(replacement)) {
+                    this._text.splice(i, 1, replacement);
+                    for(var r = 1; r < replacement.length; r++) {
+                        this._text.splice(i + r, 0, replacement[r]);
+                    }
+                    rcnt++;
+                } else if(typeof replacement == "string") {
+                    this._text.splice(i, 1, replacement);
+                    rcnt++;
+                } else if(replacement === null) {
+                    this._text.splice(i, 1);
+                    rcnt++;
+                } else {
+                    throw new Error("Invalid replacement found in rulesApply.");
+                }
+            }
+        }
+        return rcnt ? true : false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Applies transformation rules until no changes occur or the resource
+    // limits are exceeded.
+    //--------------------------------------------------------------------------
+
+    transform() {
+        var iter = 0;
+        while(true) {
+            var result = this.rulesApply();
+            if(!result)
+                break
+            if(this._text.length >= this._maxTokens || this._maxIterations <= ++iter)
+                break;
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    // Converts the text back into a string and returns it.
+    //--------------------------------------------------------------------------
+
+    textFinalize() {
+        return this._text.join(" ");
+    }
+
 }
 
 
