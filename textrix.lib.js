@@ -54,7 +54,7 @@ class TagChain extends TextrixBase {
             if(options.start !== undefined)
                 this.start = options.start;
             if(options.maxSize !== undefined)
-                this.start = options.start;
+                this.maxSize = options.maxSize;
         }
 
     }
@@ -137,8 +137,6 @@ class TagChain extends TextrixBase {
             var idx = this._cfg.tagToIdx[val];
         }
 
-
-
         return idx;
     }
 
@@ -181,7 +179,7 @@ class TagChain extends TextrixBase {
         var chain = [ ];
         var lookFor = this.start;
 
-        while(this._cfg.links[lookFor] !== undefined && chain.length <= this._cfg.maxSize) {
+        while(this._cfg.links[lookFor] !== undefined && chain.length < this._cfg.maxSize) {
             var link = this.randomElement(this._cfg.links[lookFor]);
             chain.push(link[0]);
             lookFor = link[1];

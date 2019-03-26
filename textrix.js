@@ -14,8 +14,10 @@ function main() {
 
     var optionMap = {
         chain: {
-            "infile":  { short: "i", vals: [ ] },
-            "count":   { short: "c", vals: [ ], max: 1 },
+            "infile":   { short: "i", vals: [ ] },
+            "count":    { short: "c", vals: [ ], max: 1 },
+            "start":    { short: "s", vals: [ ], max: 1 },
+            "max-size": { short: "m", vals: [ ], max: 1 },
         },
         grammar: {
             "grammar":  { short: "g", vals: [ ] },
@@ -84,6 +86,8 @@ function main() {
 
 function doChain(options) {
 
+    // Parameter validation ----------------------------------------------------
+
     if(options.count.vals.length == 0)
         error("fatal", "No output count specified.", "doChain");
 
@@ -93,6 +97,20 @@ function doChain(options) {
 
     if(options.infile.vals.length == 0)
         error("fatal", "No input file(s) specified.", "doChain");
+
+    if(options.start.vals.length == 0)
+        error("fatal", "No start tag specified.", "doChain");
+    var start = options.start.vals[0].trim();
+
+    if(options["max-size"].vals.length) {
+        var maxSize = parseInt(options["max-size"].vals[0].trim());
+        if(isNaN(maxSize) || maxSize < 1)
+            error("fatal", "max-size must be a positive integer.", "doChain");
+    } else {
+        var maxSize = null;
+    }
+
+    // Load source file --------------------------------------------------------
 
     var sources = [ ];
     for(var i = 0; i < options.infile.vals.length; i++) {
@@ -111,9 +129,12 @@ function doChain(options) {
         error("fatal", "No input file contents!", "doChain");
 
     var chain = Textrix.TagChain();
+    chain.start = start;
+    if(maxSize != null)
+        chain.maxSize = maxSize;
 
     var links = [ ];
-    var regex = /^\s*([0-9]+)\S*\s+(.*)\s+\S*([0-9]+)/;
+    var regex = /^\s*(\S+):\s+(.*)\s+:(\S+)/;
     for(var i = 0; i < sources.length; i++) {
         if(typeof sources[i] != "string")
             continue;
@@ -131,11 +152,17 @@ function doChain(options) {
         if(head.length == 0 || tail.length == 0)
             error("fatal", "Missing head/tail in chain definition: \"" + rr[0] + "\".", "doChain");
         try {
-
+            chain.linkAdd(head, body, tail);
         } catch(e) {
-
+            error("fatal", "Invalid link syntax \"" + sources[i] + "\".", "doChain");
         }
+    }
 
+    // Generate chains ---------------------------------------------------------
+
+    for(var i = 0; i < chainCount; i++) {
+        var item = chain.getChain();
+        console.log(item.join(" "));
     }
 
 }
@@ -167,7 +194,7 @@ function outputHeader(version) {
 
     console.log(
         "\n" + ac.blue("===========================================================================") + "\n"
-        + ac.yellow.bold("         Textrix  v" + version + " -- Minimalist Unit/Regression Test Tool") + "\n"
+        + ac.yellow.bold("          Textrix v" + version + " -- Minimalist Unit/Regression Test Tool") + "\n"
         + ac.blue("===========================================================================") + "\n"
     );
 
@@ -183,7 +210,9 @@ function usage(exit = true) {
     console.log(ac.white.bold("  Usage: textrix <cmd> [options]\n\n")
         + ac.green.bold(" cmd: chain ---------------------------------------------------------------\n\n")
         + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--infile        ") + ac.blue.bold("<filename(s)>  ") + ac.cyan.bold("Path to input chain file(s).\n")
-        + ac.yellow.bold("    -c") + ac.yellow(", ") + ac.yellow.bold("--count         ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Number of chains to generate.\n\n")
+        + ac.yellow.bold("    -c") + ac.yellow(", ") + ac.yellow.bold("--count         ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Number of chains to generate.\n")
+        + ac.yellow.bold("    -s") + ac.yellow(", ") + ac.yellow.bold("--start         ") + ac.blue.bold("<string>       ") + ac.cyan.bold("Start tag for chain.\n")
+        + ac.yellow.bold("    -m") + ac.yellow(", ") + ac.yellow.bold("--max-size      ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum links per chain.\n\n")
         + ac.green.bold(" cmd: grammar -------------------------------------------------------------\n\n")
         + ac.yellow.bold("    -g") + ac.yellow(", ") + ac.yellow.bold("--grammar       ") + ac.blue.bold("<filename(s)>  ") + ac.cyan.bold("Path to input chain file(s).\n")
         + ac.yellow.bold("    -t") + ac.yellow(", ") + ac.yellow.bold("--text          ") + ac.blue.bold("<filename>     ") + ac.cyan.bold("Path to template text.\n")

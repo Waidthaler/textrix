@@ -1,7 +1,15 @@
 0: foo :1
-0<-- bar -->1
-0 baz 1
+0: bar :1
+0: baz :1
 
-  0: foo :1
- 0<-- bar -->1
-       0 baz 1
+0: foo :1
+0: bar :1
+0: baz :1
+
+1: quux    :2
+1: quorgle :2
+1: gritch  :2
+
+a: blotblot :b
+a: fnord    :b
+b: glip!    :c
