@@ -1,3 +1,5 @@
+var File = require("./file.js");
+
 //==============================================================================
 // Basically a factory class.
 //==============================================================================
@@ -251,6 +253,38 @@ class SimpleGrammar extends TextrixBase {
 
 
     //--------------------------------------------------------------------------
+    // Loads a rules file. The syntax is similar to an ini file. Blank lines
+    // and comments (beginning with '//') are ignored. Nonterminals are enclosed
+    // in square brackets, and everything up to the next nonterminal is a
+    // replacement. Replacements are one per line, optionally introduced by an
+    // +integer weight and a colon. Everything after the colon and any adjacent
+    // whitespace is the replacement. The default weight is 1.
+    //
+    // [nonterminal]
+    // 30: foo
+    // 15: bar
+    //
+    // Multiple files can be loaded. Duplicate nonterminals append their values
+    // to the earlier ones.
+    //--------------------------------------------------------------------------
+
+    rulesLoad(filename) {
+        var fp = new File(filename, "r");
+        if(!fp.open)
+            error("fatal", "Unable to open grammar file \"" + filename + "\" for reading.", "SimpleGrammar");
+        var tmp = fp.read();
+        tmp = tmp.split(/\n+/);
+        var lines = [ ];
+        while(tmp.length) {
+            var line = tmp.pop().replace(/\/\/.*/g, "").trim();
+            if(line.length)
+                lines.push(line);
+        }
+
+        // TODO ....
+    }
+
+    //--------------------------------------------------------------------------
     // Given a rule, returns one of the weighted replacements.
     //--------------------------------------------------------------------------
 
@@ -327,7 +361,8 @@ class SimpleGrammar extends TextrixBase {
     }
 
     //--------------------------------------------------------------------------
-    // Converts the text back into a string and returns it.
+    // Converts the text back into a string and returns it. TODO: Much massaging
+    // of punctuation and whitespace.
     //--------------------------------------------------------------------------
 
     textFinalize() {

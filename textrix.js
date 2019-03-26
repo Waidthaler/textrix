@@ -62,6 +62,9 @@ function main() {
     if(optionMap["@subcommand"] === undefined)
         error("fatal", "No subcommand given.");
 
+    if(verbosity)
+        outputHeader(version);
+
     switch(optionMap["@subcommand"]) {
         case "chain":
             doChain(optionMap.chain);
@@ -173,7 +176,44 @@ function doChain(options) {
 //==============================================================================
 
 function doGrammar(options) {
-    error("fatal", "doGrammar is not implemented yet.", "doChain");
+
+    error("warn", "doGrammar is under construction.", "doGrammar");
+
+    // Parameter validation ----------------------------------------------------
+
+    var opts = { };   // options for SimpleGrammar constructor
+
+    if(options.grammar.vals.length == 0)
+        error("fatal", "No input file(s) specified.", "doGrammar");
+
+    if(options.text.vals.length == 0)
+        error("fatal", "No working text template specified.", "doGrammar");
+
+    if(options.tokens.vals.length > 0) {
+        let tcnt = parseInt(options.tokens.vals[0]);
+        if(isNaN(tcnt) || tcnt < 1)
+            error("fatal", "The maximum token count must be a positive integer.", "doGrammar");
+        opts.maxTokens = tcnt;
+    }
+
+    if(options.iter.vals.length > 0) {
+        let iter = parseInt(options.iter.vals[0]);
+        if(isNaN(iter) || iter < 1)
+            error("fatal", "The maximum iteration count must be a positive integer.", "doGrammar");
+        opts.maxIterations = tcnt;
+    }
+
+    // Load grammar and working text files -------------------------------------
+
+    var fp = new File(options.text.vals[0], "r");
+    if(!fp.open)
+        error("fatal", "Unable to open text template file \"" + options.text.vals[0] + "\" for reading.");
+    var rawText = fp.read();
+    fp.close();
+
+    // This will be a lot easier if we define a file format. Ahem.
+
+
 }
 
 //==============================================================================
@@ -181,7 +221,7 @@ function doGrammar(options) {
 //==============================================================================
 
 function doBabble(options) {
-    error("fatal", "doBabble is not implemented yet.", "doChain");
+    error("fatal", "doBabble is not implemented yet.", "doBabble");
 }
 
 
@@ -214,7 +254,7 @@ function usage(exit = true) {
         + ac.yellow.bold("    -s") + ac.yellow(", ") + ac.yellow.bold("--start         ") + ac.blue.bold("<string>       ") + ac.cyan.bold("Start tag for chain.\n")
         + ac.yellow.bold("    -m") + ac.yellow(", ") + ac.yellow.bold("--max-size      ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum links per chain.\n\n")
         + ac.green.bold(" cmd: grammar -------------------------------------------------------------\n\n")
-        + ac.yellow.bold("    -g") + ac.yellow(", ") + ac.yellow.bold("--grammar       ") + ac.blue.bold("<filename(s)>  ") + ac.cyan.bold("Path to input chain file(s).\n")
+        + ac.yellow.bold("    -g") + ac.yellow(", ") + ac.yellow.bold("--grammar       ") + ac.blue.bold("<filename(s)>  ") + ac.cyan.bold("Path to grammar file(s).\n")
         + ac.yellow.bold("    -t") + ac.yellow(", ") + ac.yellow.bold("--text          ") + ac.blue.bold("<filename>     ") + ac.cyan.bold("Path to template text.\n")
         + ac.yellow.bold("    -T") + ac.yellow(", ") + ac.yellow.bold("--tokens        ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of tokens.\n")
         + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--iter          ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of iterations.\n\n")
