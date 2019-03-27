@@ -1,4 +1,5 @@
-var File = require("./file.js");
+var File     = require("./lib/file.js");
+const {dump} = require('dumper.js');
 
 //==============================================================================
 // Basically a factory class.
@@ -211,6 +212,7 @@ class SimpleGrammar extends TextrixBase {
         super(options);
 
         this._rules         = { };
+        this._rulesFile     = null;
         this._text          = [ ];
         this._maxTokens     = Infinity;
         this._maxIterations = Infinity;
@@ -226,6 +228,11 @@ class SimpleGrammar extends TextrixBase {
             } else {
                 this._text = this.textParse(options.text);
             }
+        }
+
+        if(options.rulesFile !== undefined) {
+            this._rulesFile = option.rulesFile;
+            this.rulesLoad(this._rulesFile);
         }
 
         if(options.maxTokens !== undefined)
@@ -276,7 +283,7 @@ class SimpleGrammar extends TextrixBase {
         tmp = tmp.split(/\n+/);
         var lines = [ ];
         while(tmp.length) {
-            var line = tmp.pop().replace(/\/\/.*/g, "").trim();
+            var line = tmp.shift().replace(/\/\/.*/g, "").trim();
             if(line.length)
                 lines.push(line);
         }
@@ -287,16 +294,16 @@ class SimpleGrammar extends TextrixBase {
         var currentNonterminal = null;
         var currentReplacements = [ ];
 
-        for(var i = 0; i < lines.length; i++) {
-            if(var match = lines[i].match(nonterminal)) {
+        for(var i = 0, match; i < lines.length; i++) {
+            if(match = lines[i].match(nonterminal)) {
                 if(currentNonterminal !== null && currentReplacements.length)
                     this.ruleSet(currentNonterminal, currentReplacements);
                 currentNonterminal = match[1];
                 currentReplacements = [ ];
 
-            } else if(var match = lines[i].match(replacement) && currentNonterminal !== null) {
+            } else if((match = lines[i].match(replacement)) && currentNonterminal !== null) {
                 var weight = match[2] === undefined ? 1 : parseInt(match[2]);
-                var str    = match[3];
+                var str    = this.textParse(match[3]);
 
                 if(isNaN(weight) || weight < 1)
                     error("fatal", "Invalid weight: " + lines[i], "SimpleGrammar.rulesLoad");
@@ -304,6 +311,8 @@ class SimpleGrammar extends TextrixBase {
                 currentReplacements.push([str, weight]);
             }
         }
+        if(currentNonterminal !== null && currentReplacements.length)
+            this.ruleSet(currentNonterminal, currentReplacements);
     }
 
     //--------------------------------------------------------------------------
@@ -311,6 +320,8 @@ class SimpleGrammar extends TextrixBase {
     //--------------------------------------------------------------------------
 
     getReplacement(nonterminal) {
+        if(this._rules[nonterminal] === undefined)
+            return nonterminal;
         var rule = this._rules[nonterminal];
         var num  = Math.floor(rule.sum * Math.random());
         for(var i = 0, sum = 0; i < rule.replacements.length; i++) {
@@ -323,11 +334,11 @@ class SimpleGrammar extends TextrixBase {
 
 
     //--------------------------------------------------------------------------
-    // Breaks an input text into tokens and stores it in this._text.
+    // Breaks an input text into tokens.
     //--------------------------------------------------------------------------
 
     textParse(text) {
-        this._text = text.trim().replace(/n't/g, "#NT#")
+        return text.trim().replace(/n't/g, "#NT#")
             .replace(/(\S+)'s/g, "$1#APOS#")
             .replace(/\n/g, " #CR# ")
             .replace(/([^#\[\]A-Za-z])/g, " $1 ")
@@ -343,26 +354,18 @@ class SimpleGrammar extends TextrixBase {
 
     rulesApply() {
         var rcnt = 0;
+        var text = [ ];
+
         for(var i = 0; i < this._text.length; i++) {
             if(this._text[i].substr(0, 1) == "[" && this._text[i].substr(-1) == "]") {
                 var replacement = this.getReplacement(this._text[i].substr(1, this._text[i].length - 2));
-                if(Array.isArray(replacement)) {
-                    this._text.splice(i, 1, replacement);
-                    for(var r = 1; r < replacement.length; r++) {
-                        this._text.splice(i + r, 0, replacement[r]);
-                    }
-                    rcnt++;
-                } else if(typeof replacement == "string") {
-                    this._text.splice(i, 1, replacement);
-                    rcnt++;
-                } else if(replacement === null) {
-                    this._text.splice(i, 1);
-                    rcnt++;
-                } else {
-                    throw new Error("Invalid replacement found in rulesApply.");
-                }
+                for(var j = 0; j < replacement.length; text.push(replacement[j++]));
+                 rcnt++;
+            } else {
+                text.push(this._text[i]);
             }
         }
+        this._text = text;
         return rcnt ? true : false;
     }
 

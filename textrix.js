@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 const version   = "0.0.1";
-const verbosity = 1;
+var   verbosity = 1;
 
 const Textrix = require("./textrix.lib.js");
 const minicle = require("minicle");
 const ac      = require("ansi-colors");
 const File    = require("./lib/file.js");
+const {dump}  = require('dumper.js');
 
 main();
 
@@ -82,6 +83,68 @@ function main() {
 
 }
 
+
+//==============================================================================
+// Entry point for grammar execution.
+//==============================================================================
+
+function doGrammar(options) {
+
+    error("warn", "doGrammar is under construction.", "doGrammar");
+
+    // Parameter validation ----------------------------------------------------
+
+    var opts = { };   // options for SimpleGrammar constructor
+
+    if(options.grammar.vals.length == 0)
+        error("fatal", "No input file(s) specified.", "doGrammar");
+
+    if(options.text.vals.length == 0)
+        error("fatal", "No working text template specified.", "doGrammar");
+
+    if(options.tokens.vals.length > 0) {
+        let tcnt = parseInt(options.tokens.vals[0]);
+        if(isNaN(tcnt) || tcnt < 1)
+            error("fatal", "The maximum token count must be a positive integer.", "doGrammar");
+        opts.maxTokens = tcnt;
+    }
+
+    if(options.iter.vals.length > 0) {
+        let iter = parseInt(options.iter.vals[0]);
+        if(isNaN(iter) || iter < 1)
+            error("fatal", "The maximum iteration count must be a positive integer.", "doGrammar");
+        opts.maxIterations = tcnt;
+    }
+
+    // Load grammar and working text files -------------------------------------
+
+    var fp = new File(options.text.vals[0], "r");
+    if(!fp.open)
+        error("fatal", "Unable to open text template file \"" + options.text.vals[0] + "\" for reading.");
+    var rawText = fp.read();
+    fp.close();
+
+    var sg = Textrix.SimpleGrammar({ text: rawText });
+    if(verbosity == 4) {
+        error("debug", "sg._text dump follows", "doGrammar");
+        dump(sg._text);
+    }
+
+    sg.rulesLoad(options.grammar.vals[0]);
+    if(verbosity == 4) {
+        error("debug", "sg._rules dump follows:", "doGrammar");
+        dump(sg._rules);
+    }
+
+    // Iterate transformations and output --------------------------------------
+
+    sg.transform();
+
+    // TODO: text cleanup
+
+    console.log(sg._text.join(" "));
+
+}
 
 //==============================================================================
 // Entry point for chain generation.
@@ -170,51 +233,6 @@ function doChain(options) {
 
 }
 
-
-//==============================================================================
-// Entry point for grammar execution.
-//==============================================================================
-
-function doGrammar(options) {
-
-    error("warn", "doGrammar is under construction.", "doGrammar");
-
-    // Parameter validation ----------------------------------------------------
-
-    var opts = { };   // options for SimpleGrammar constructor
-
-    if(options.grammar.vals.length == 0)
-        error("fatal", "No input file(s) specified.", "doGrammar");
-
-    if(options.text.vals.length == 0)
-        error("fatal", "No working text template specified.", "doGrammar");
-
-    if(options.tokens.vals.length > 0) {
-        let tcnt = parseInt(options.tokens.vals[0]);
-        if(isNaN(tcnt) || tcnt < 1)
-            error("fatal", "The maximum token count must be a positive integer.", "doGrammar");
-        opts.maxTokens = tcnt;
-    }
-
-    if(options.iter.vals.length > 0) {
-        let iter = parseInt(options.iter.vals[0]);
-        if(isNaN(iter) || iter < 1)
-            error("fatal", "The maximum iteration count must be a positive integer.", "doGrammar");
-        opts.maxIterations = tcnt;
-    }
-
-    // Load grammar and working text files -------------------------------------
-
-    var fp = new File(options.text.vals[0], "r");
-    if(!fp.open)
-        error("fatal", "Unable to open text template file \"" + options.text.vals[0] + "\" for reading.");
-    var rawText = fp.read();
-    fp.close();
-
-    // This will be a lot easier if we define a file format. Ahem.
-
-
-}
 
 //==============================================================================
 // Entry point for quasi-Markov chain generation.
