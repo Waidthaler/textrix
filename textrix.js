@@ -139,10 +139,7 @@ function doGrammar(options) {
     // Iterate transformations and output --------------------------------------
 
     sg.transform();
-
-    // TODO: text cleanup
-
-    console.log(sg._text.join(" "));
+    console.log(sg.textFinalize());
 
 }
 

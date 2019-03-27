@@ -391,7 +391,9 @@ class SimpleGrammar extends TextrixBase {
     //--------------------------------------------------------------------------
 
     textFinalize() {
-        return this._text.join(" ");
+        var result = this._text.join(" ");
+        result = result.replace(/\s+([!\.\?:;,]+)/g, "$1");
+        return result;
     }
 
 }
