@@ -346,9 +346,8 @@ function test() {
 
 TODO:
 
-    * start symbol for TagChain
+    * tokenize replacements
     * output file or stdout
-    * parse format for grammar
     * import stuff from V implementation for babble
 
 
