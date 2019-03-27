@@ -243,7 +243,7 @@ class SimpleGrammar extends TextrixBase {
 
     ruleSet(nonterminal, replacements) {
         if(!Array.isArray(replacements))
-            throw new Error("The replacements argument in ruleSet must be an array of at least one element.");
+            throw new Error("The replacements argument in ruleSet must be an array of at least one element.", "SimpleGrammar.ruleSet");
         for(var i = 0, sum = 0; i < replacements.length; i++) {
             // TODO: validation
             sum += replacements[i][1];
@@ -260,7 +260,7 @@ class SimpleGrammar extends TextrixBase {
     // +integer weight and a colon. Everything after the colon and any adjacent
     // whitespace is the replacement. The default weight is 1.
     //
-    // [nonterminal]
+    // [nonterminal]        // more formats may be supported in the future
     // 30: foo
     // 15: bar
     //
@@ -271,7 +271,7 @@ class SimpleGrammar extends TextrixBase {
     rulesLoad(filename) {
         var fp = new File(filename, "r");
         if(!fp.open)
-            error("fatal", "Unable to open grammar file \"" + filename + "\" for reading.", "SimpleGrammar");
+            error("fatal", "Unable to open grammar file \"" + filename + "\" for reading.", "SimpleGrammar.rulesLoad");
         var tmp = fp.read();
         tmp = tmp.split(/\n+/);
         var lines = [ ];
@@ -281,7 +281,29 @@ class SimpleGrammar extends TextrixBase {
                 lines.push(line);
         }
 
-        // TODO ....
+        var nonterminal = /^\[([^\]]+)\]/;
+        var replacement = /^(([0-9]+):)?\s*(.*)/;
+
+        var currentNonterminal = null;
+        var currentReplacements = [ ];
+
+        for(var i = 0; i < lines.length; i++) {
+            if(var match = lines[i].match(nonterminal)) {
+                if(currentNonterminal !== null && currentReplacements.length)
+                    this.ruleSet(currentNonterminal, currentReplacements);
+                currentNonterminal = match[1];
+                currentReplacements = [ ];
+
+            } else if(var match = lines[i].match(replacement) && currentNonterminal !== null) {
+                var weight = match[2] === undefined ? 1 : parseInt(match[2]);
+                var str    = match[3];
+
+                if(isNaN(weight) || weight < 1)
+                    error("fatal", "Invalid weight: " + lines[i], "SimpleGrammar.rulesLoad");
+
+                currentReplacements.push([str, weight]);
+            }
+        }
     }
 
     //--------------------------------------------------------------------------

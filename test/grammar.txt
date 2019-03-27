@@ -1,0 +1,15 @@
+[sentence]
+    1:[nounPhrase] [verbPhrase]
+    1:[exclamation]
+
+[nounPhrase]
+    you
+
+[verbPhrase]
+    are going to the store
+
+[exclamation]
+    Hot diggety!
+    Gosh darn!
+    Ouch my balls!
+    Gadzooks!
