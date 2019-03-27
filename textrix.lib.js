@@ -409,66 +409,62 @@ class Babble extends TextrixBase {
         super(options);
 
         // The _docs object consists of named, parsed document objects, e.g.,
-        //     jones: { weight: 1.0, content: [ ], active: true, sort: 1 }
+        //     jones: { weight: 1.0, content: [ ], active: true, title, sort: 1 }
 
         this._docs           = { };
-        this._userDoc        = null;         // the name of the "you" doc.
-        this._runMode        = "monologue";  // can be "monologue" or "dialogue"
         this._inputFilter    = ['"'];        // array of tokens/regexps to purge from input
         this._outputFilter   = null;         // filter to use on output
-
+        this._msgQueue       = null;         // callback to put messages in queue
+        this._diagnostics    = false;
 
     }
 
     //--------------------------------------------------------------------------
-    // Tokenizes a block of text and stores it in mcu.docs. The arguments are as
+    // Tokenizes a block of text and stores it in this._docs. The arguments are as
     // follows:
     //
     //      content ... The string to be parsed.
-    //      doc ....... This is either an integer index into mcu.docs, or it is
-    //                  null, in which case it is created as a new member of
-    //                  mcu.docs.
-    //      name ...... If non-null, this is a string to be used as the title of
-    //                  the document. (Typically null when appending to an
-    //                  existing document.
+    //      docId ..... Object key for this._docs.
+    //      title...... If non-null, this is a string to be used as the title of
+    //                  the document.
     //      append .... Boolean. If true, appends; if false, overwrites.
     //      filter .... Boolean. Specifies whether to apply the current input
     //                  filter settings.
     //--------------------------------------------------------------------------
 
-    parseDocument(content, doc, name, append, filter) {
+    parseDocument(content, docId, title = null, append = true, filter = true) {
 
         var startTime = new Date();
-        var tokens = tokenize(content);
-        var endTime = new Date();
+        var tokens    = this.tokenize(content);
+        var endTime   = new Date();
+        var runTime   = endTime - startTime;
 
-        var runTime = endTime - startTime;
-        var msg = "@parseDocument([content], " + doc + ", " + name + ", " + append + ", " + filter + ");\n" +
+        var msg = "@parseDocument([content], " + docId + ", " + title + ", " + append + ", " + filter + ");\n" +
             "Input size:  " + content.length + " bytes\n" +
             "Token count: " + tokens.length + "\n" +
             "Run time:    " + Math.round(runTime / 1000) + " seconds (" + runTime + " msecs)\n" +
             "Byte rate:   " + (runTime / content.length) + " msec per byte\n" +
             "Token rate:  " + (runTime / tokens.length) + " msec per token\n";
 
-        if(doc == null) {
-            this._docs.push( { name: "", weight: 0.0, content: [ ], active: false } );
-            doc = this._docs.length - 1;
-            msg += "Created new document " + doc + ".\n";
+        if(this._docs[docId] === undefined) {
+            this._docs[docId]( { title: "", weight: 0.0, content: [ ], active: false } );
+            msg += "Created new document " + docId + ".\n";
         }
-        if(name != null) {
-            this._docs[doc].name = name;
-        }
-        if(filter) {
-            tokens = purgeTokens(tokens, this._inputFilter);
-        }
+
+        if(title != null)
+            this._docs[docId].title = title;
+
+        if(filter)
+            tokens = this.purgeTokens(tokens, this._inputFilter);
+
         if(append) {
             while(tokens.length) {
-                this._docs[doc].content.push(tokens.pop());
+                this._docs[docId].content.push(tokens.pop());
             }
-            msg += "Appended input to existing document " + doc + " (" + this._docs[doc].name + ").\n";
+            msg += "Appended input to existing document " + docId + " (" + this._docs[docId].title + ").\n";
         } else {
-            this._docs[doc].content = tokens;
-            msg += "Replaced content of document " + doc + " (" + this._docs[doc].name + ").\n";
+            this._docs[docId].content = tokens;
+            msg += "Replaced content of document " + docId + " (" + this._docs[docId].title + ").\n";
         }
         if(this._diagnostics) {
             debug(msg);
@@ -653,6 +649,8 @@ class Babble extends TextrixBase {
     // weight is most likely but not guaranteed to come first, and the document
     // with the lowest weight is most likely but not guaranteed to come last.
     //--------------------------------------------------------------------------
+
+    // FIXME
 
     documentOrdering() {
         var docs = [ ];

@@ -363,6 +363,8 @@ function test() {
 
 TODO:
 
+    * Add out-of-band message channels to TextrixBase for errors, debugging, etc.
+    * Add token dictionary to Babble
     * add freeze/universal option for nonterminals
     * output file or stdout
 
