@@ -1,0 +1,173 @@
+<html><head><title>Control Test</title>
+
+<link type="text/css" href="css/ui-darkness/jquery-ui-1.8.16.custom.css" rel="stylesheet" />
+<script type="text/javascript" src="js/jquery-1.7.min.js"></script>
+<script type="text/javascript" src="js/jquery-ui-1.8.16.custom.min.js"></script>
+<script type="text/javascript" src="js/datadumper.js"></script>
+
+<style type='text/css'>
+	body                 { font: 10pt Arial; }
+	table                { font: 10pt Arial; }
+	div.itemslider       { margin: 10px; width: 200px; }
+	td.isc               { width: 200px; vertical-align: top; padding-left: 20px; padding-right: 10px; }
+	td.sval              { text-align: right; padding-right: 1em; width: 25px; }
+	div.scrollback       { width: 480px; height: 280px; border: 1px solid black; overflow: auto; padding: 10px; font: 10pt Arial; }
+	textarea.input       { width: 400px; height: 100px; border: 1px solid black; overflow: auto; padding: 10px; font: 9pt "Lucida Console","Courier New",Courier,fixed; }
+	div.output           { margin-bottom: 1em; }
+	div.odialog          { color: blue;  }
+	span.speaker         { font-weight: bold; }
+	div.oresponse        { color: black; font-weight: bold; }
+	div.ogloss           { color: #060; font-style: italic; }
+	div.ocomment         { color: #A00; }
+	div.ocommand         { color: black; background-color: #FFA; font: 9pt "Lucida Console","Courier New",Courier,fixed; padding: 10px; border: 1px dashed #AA0; }
+	span.command_literal { font-weight: bold; }
+	#text_controls       { width: 500px; margin-top: 10px; }
+	#mode_buttons        { float: right; }
+	.mode_button         { width: 90px; margin-bottom: 5px; }
+	#dialog_button       { color: #008; font-weight: bold; background-color: #88F; border-color: #88F; }
+	#gloss_button        { color: #020; font-weight: bold; background-color: #393; border-color: #393; }
+	#comment_button      { color: #200; font-weight: bold; background-color: #A44; border-color: #A44; }
+	#command_button      { color: #000; font-weight: bold; background-color: #AA0; border-color: #AA0; }
+</style>
+
+<script type='text/javascript'>
+
+var pg = {
+	obscure: true,
+	maxitem: -1,
+	items:  [ ],
+}
+
+//==============================================================================
+// Initializes everything. How's that for a bland function name and an
+// uninformative comment?
+//==============================================================================
+
+function init() {
+	if(pg.obscure) {
+		$("#dialog_button").html("Mode 1");
+		$("#gloss_button").html("Mode 2");
+		$("#comment_button").html("Mode 3");
+		$("#command_button").html("Mode 4");
+	}
+
+	$("#input").height($("#dialog_button").outerHeight(true) * 4 - 4);
+
+	$(".slider").each( itemInit );
+}
+
+function itemInit(i, obj) { 
+	var index = obj.id.match(/slider([0-9]+)/).pop();
+	if(index > pg.maxitem) {
+		pg.maxitem = index;
+	}
+
+	pg.items[index] = { name: null, value: 0, content: '' };
+	$("#itemval" + index).html(0);
+
+	$("#slider" + index).slider( {
+		animate: true,
+		min: 0,
+		max: 1,
+		step: 0.001, 
+		slide: function(event, ui) {
+			pg.items[index].value = ui.value;
+			$("#itemval" + index).html(Math.round(ui.value * 100));
+		}
+	}); 
+}
+
+
+//==============================================================================
+// Handles user input: parses commands, etc., copies contents to scrollback
+// buffer.
+//==============================================================================
+
+function user_input(mode) {
+
+	// Get and clean up user input.
+
+	var txt = $("#input").val();
+	txt = txt.replace(/^\s+/, '').replace(/\s+$/, '');
+	$("#input").val('');
+	$("#input").focus();
+
+	switch(mode) {
+		case 'dialog':
+			// parse
+			$("#scrollback").append("<div class='output odialog'><span class='speaker'>USER:</span> " + txt + "</div>");
+			break;
+		case 'gloss':
+			// parse
+			$("#scrollback").append("<div class='output ogloss'>" + txt + "</div>");
+			break;
+		case 'comment':
+			// no parsing happens on comments; they just get written to the log
+			$("#scrollback").append("<div class='output ocomment'>[" + txt + "]</div>");
+			break;
+		case 'command':
+			// parse
+			var response = "In the event of a real command, this would be output.";
+			$("#scrollback").append("<div class='output ocommand'>$&gt; <span class='command_literal'>" + txt + "</span><br/><br/>" + response + "</div>");
+			break;
+	}
+
+
+	return false;
+}
+
+
+</script>
+
+</head>
+<body onload='init()'>
+
+<table id='mainframe'>
+<tr><td valign='top'>
+
+<div id='scrollback' class='scrollback'></div>
+<div id='text_controls'>
+<textarea class='input' name='input' id='input'></textarea>
+<div id='mode_buttons'>
+<button id='dialog_button'  class='mode_button' onclick='user_input("dialog")'>Dialog</button><br/>
+<button id='gloss_button'   class='mode_button' onclick='user_input("gloss")'>Gloss</button><br/>
+<button id='comment_button' class='mode_button' onclick='user_input("comment")'>Comment</button><br/>
+<button id='command_button' class='mode_button' onclick='user_input("command")'>Command</button>
+</div>
+</div>
+
+</td><td valign='top'>
+
+<table>
+<tr><td><input type='radio' name='you' value='0'></td><td id='itemname0' class='slideritem'>User</td>     <td class='isc'><div id='slider0' offset='0' class='slider'></div></td><td id='itemval0' class='sval'></td></tr>
+<tr><td><input type='radio' name='you' value='1'></td><td id='itemname1' class='slideritem'><i>empty</i></td><td class='isc'><div id='slider1' offset='1' class='slider'></div></td><td id='itemval1' class='sval'></td></tr>
+<tr><td><input type='radio' name='you' value='2'></td><td id='itemname2' class='slideritem'><i>empty</i></td><td class='isc'><div id='slider2' offset='2' class='slider'></div></td><td id='itemval2' class='sval'></td></tr>
+<tr><td><input type='radio' name='you' value='3'></td><td id='itemname3' class='slideritem'><i>empty</i></td><td class='isc'><div id='slider3' offset='3' class='slider'></div></td><td id='itemval3' class='sval'></td></tr>
+<tr><td><input type='radio' name='you' value='4'></td><td id='itemname4' class='slideritem'><i>empty</i></td><td class='isc'><div id='slider4' offset='4' class='slider'></div></td><td id='itemval4' class='sval'></td></tr>
+</table>
+
+
+</td></tr>
+</table>
+
+
+<div id='debug'></div>
+
+<div id='todo'>
+
+<ul>
+<li>Debug console</li>
+<li>Slider | Output filter | Config panel</li>
+<li>Slider initialization</li>
+<li>External sample docs</li>
+<li>Document loading</li>
+<li>Dialog generation</li>
+<li>Monolog generation</li>
+<li>External window support</li>
+</ul>
+
+</div>
+
+
+</body>
+</html>
