@@ -361,9 +361,7 @@ function test() {
 
 TODO:
 
-    * tokenize replacements
+    * add freeze/universal option for nonterminals
     * output file or stdout
-    * import stuff from V implementation for babble
-
 
 */
