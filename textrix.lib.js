@@ -420,7 +420,7 @@ class Babble extends TextrixBase {
 
     }
 
-    //==========================================================================
+    //--------------------------------------------------------------------------
     // Tokenizes a block of text and stores it in mcu.docs. The arguments are as
     // follows:
     //
@@ -434,7 +434,7 @@ class Babble extends TextrixBase {
     //      append .... Boolean. If true, appends; if false, overwrites.
     //      filter .... Boolean. Specifies whether to apply the current input
     //                  filter settings.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     parseDocument(content, doc, name, append, filter) {
 
@@ -451,35 +451,35 @@ class Babble extends TextrixBase {
             "Token rate:  " + (runTime / tokens.length) + " msec per token\n";
 
         if(doc == null) {
-            mcu.docs.push( { name: "", weight: 0.0, content: [ ], active: false } );
-            doc = mcu.docs.length - 1;
+            this._docs.push( { name: "", weight: 0.0, content: [ ], active: false } );
+            doc = this._docs.length - 1;
             msg += "Created new document " + doc + ".\n";
         }
         if(name != null) {
-            mcu.docs[doc].name = name;
+            this._docs[doc].name = name;
         }
         if(filter) {
-            tokens = purgeTokens(tokens, mcu.inputFilter);
+            tokens = purgeTokens(tokens, this._inputFilter);
         }
         if(append) {
             while(tokens.length) {
-                mcu.docs[doc].content.push(tokens.pop());
+                this._docs[doc].content.push(tokens.pop());
             }
-            msg += "Appended input to existing document " + doc + " (" + mcu.docs[doc].name + ").\n";
+            msg += "Appended input to existing document " + doc + " (" + this._docs[doc].name + ").\n";
         } else {
-            mcu.docs[doc].content = tokens;
-            msg += "Replaced content of document " + doc + " (" + mcu.docs[doc].name + ").\n";
+            this._docs[doc].content = tokens;
+            msg += "Replaced content of document " + doc + " (" + this._docs[doc].name + ").\n";
         }
-        if(mcu.diagnostics) {
+        if(this._diagnostics) {
             debug(msg);
         }
     }
 
 
-    //==========================================================================
+    //--------------------------------------------------------------------------
     // Given a block of natural language text, tokenize() breaks it into tokens
     // and returns it as an array.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     tokenize(txt) {
 
@@ -527,8 +527,8 @@ class Babble extends TextrixBase {
     }
 
 
-    //==========================================================================
-    // Searches mcu.docs[idx].content for a match of ngram, which is supplied as
+    //--------------------------------------------------------------------------
+    // Searches this._docs[idx].content for a match of ngram, which is supplied as
     // an array of strings. If exact is true, no normalization is performed. If
     // the optional partial argument is supplied as an integer, matches down to
     // partial size will be included. The result is structured thus:
@@ -538,10 +538,10 @@ class Babble extends TextrixBase {
     // Since this is the most computationally intensive part of the program,
     // the conditionals for exact and partial are everted from the main loop,
     // which is duplicated to cover the four basic combinations.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     ngramSearch(idx, ngram, exact, partial) {
-        var tokens = mcu.docs[idx].content;
+        var tokens = this._docs[idx].content;
         var matches = [ ];
 
         if(partial != undefined) {
@@ -636,7 +636,7 @@ class Babble extends TextrixBase {
         var endTime = new Date();
         var runTime = endTime.getTime() - startTime.getTime();
 
-        if(mcu.diagnostics) {
+        if(this._diagnostics) {
             var msg = "@ngramSearch(" + idx + ", [ " + ngram + "], " + exact + ", " + partial + ");\n" +
                 "Runtime: " + runTime + " msec\n" +
                 "Output: " + Dumper(matches) + "\n";
@@ -647,25 +647,25 @@ class Babble extends TextrixBase {
     }
 
 
-    //==========================================================================
-    // Returns an array containing the indices of mcu.docs where active is true,
+    //--------------------------------------------------------------------------
+    // Returns an array containing the indices of this._docs where active is true,
     // randomly ordered using their weights, i.e., the document with the highest
-    // weight is most likely but not guaranteed to come first, and the document with
-    // the lowest weight is most likely but not guaranteed to come last.
-    //==========================================================================
+    // weight is most likely but not guaranteed to come first, and the document
+    // with the lowest weight is most likely but not guaranteed to come last.
+    //--------------------------------------------------------------------------
 
     documentOrdering() {
         var docs = [ ];
 
-        for(var i in mcu.docs) {
-            if(mcu.docs[i].active) {
+        for(var i in this._docs) {
+            if(this._docs[i].active) {
                 docs.push(i);
             }
         }
 
-        var docs = docs.sort( function(a, b) { return (Math.random() * mcu.docs[a].weight) - (Math.random() * mcu.docs[b].weight); } );
+        var docs = docs.sort( function(a, b) { return (Math.random() * this._docs[a].weight) - (Math.random() * this._docs[b].weight); } );
 
-        if(mcu.diagnostics) {
+        if(this._diagnostics) {
             var msg = "@documentOrdering();\n" +
                 "Output: [ " + docs + "]\n";
         }
@@ -674,9 +674,9 @@ class Babble extends TextrixBase {
     }
 
 
-    //==========================================================================
+    //--------------------------------------------------------------------------
     // Given any array, returns a randomly sorted copy of it.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     randomSort(ary) {
         var result = ary.slice(0);
@@ -684,7 +684,7 @@ class Babble extends TextrixBase {
         for(var i = 0; i < 10; i++)
             result.sort( function(a, b) { return Math.random() - Math.random(); } );
 
-        if(mcu.diagnostics) {
+        if(this._diagnostics) {
             var msg = "@randomSort( [ " + ary + " ] );\n" +
                 "Output: [ " + result + " ]\n";
         }
@@ -693,10 +693,10 @@ class Babble extends TextrixBase {
     }
 
 
-    //==========================================================================
+    //--------------------------------------------------------------------------
     // Takes an array of tokens and an array of strings and/or regular expressions
     // and returns a copy of the first array with matching elements removed.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     purgeTokens(tokens, purge) {
         var result = [ ];
@@ -727,10 +727,10 @@ class Babble extends TextrixBase {
     }
 
 
-    //==========================================================================
+    //--------------------------------------------------------------------------
     // Appends msg to the contents of the element with the id "debug_console" if it
     // exists.
-    //==========================================================================
+    //--------------------------------------------------------------------------
 
     debug(msg) {
         var obj = document.getElementById("debug_console");
@@ -746,37 +746,4 @@ class Babble extends TextrixBase {
 module.exports = Textrix;
 
 
-/*
 
-// This is waiting to be cannibalized for the Babble class, whatever I end up
-// calling it.
-
-//==============================================================================
-// The mcu -- master control unit -- object is the global face of the
-// application.
-//==============================================================================
-
-var mcu = {
-    docs: [      // Default docs at startup -- if content is string, loads from prepack
-        { name: "You", weight: 1.0, content: [ ], active: true  },
-        { name: "",    weight: 0.0, content: [ ], active: false },
-        { name: "",    weight: 0.0, content: [ ], active: false },
-        { name: "",    weight: 0.0, content: [ ], active: false },
-        { name: "",    weight: 0.0, content: [ ], active: false },
-    ],
-    userDoc:        0,            // offset of docs wherein to store user input
-    runMode:        "monologue",  // may be either "monologue" or "dialogue"
-    inputFilter:    ['"'],        // array of tokens/regexps to purge from input
-    outputFilter:   null,         // filter to use on output
-    delay:          3000,         // delay for monologue in milliseconds
-    responseLength: 3,            // number of sentences per response
-    diagnostics:    false,        // if true, diagnostic output is captured
-};
-
-
-
-
-
-
-
-*/
