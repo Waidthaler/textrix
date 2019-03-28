@@ -90,7 +90,8 @@ function main() {
 //==============================================================================
 
 function doBabble(options) {
-    error("fatal", "doBabble is not implemented yet.", "doBabble");
+    error("warn", "doBabble is not implemented yet.", "doBabble");
+    test();
 }
 
 
@@ -275,8 +276,8 @@ function usage(exit = true) {
         + ac.yellow.bold("    -T") + ac.yellow(", ") + ac.yellow.bold("--tokens        ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of tokens.\n")
         + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--iter          ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of iterations.\n\n")
         + ac.green.bold(" cmd: babble --------------------------------------------------------------\n\n")
-        + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--infile        ") + ac.blue.bold("<file/name/wt> ") + ac.cyan.bold("Input file, name, and weight.\n\n")
-        + ac.yellow.bold("    -c") + ac.yellow(", ") + ac.yellow.bold("--count         ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Number of sentences to generate.\n")
+        + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--infile        ") + ac.blue.bold("<file/name/wt> ") + ac.cyan.bold("Input file, name, and weight.\n")
+        + ac.yellow.bold("    -c") + ac.yellow(", ") + ac.yellow.bold("--count         ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Number of sentences to generate.\n\n")
         + ac.green.bold(" General options-----------------------------------------------------------\n\n")
         + ac.yellow.bold("    -v") + ac.yellow(", ") + ac.yellow.bold("--verbose       ") + ac.blue.bold("               ") + ac.cyan.bold("Increase verbosity (1-4).\n")
         + ac.yellow.bold("    -q") + ac.yellow(", ") + ac.yellow.bold("--quiet         ") + ac.blue.bold("               ") + ac.cyan.bold("Suppress console output.\n")
@@ -323,8 +324,28 @@ function error(level, message, location = "TEXTRIX") {
 
 function test() {
 
-    var someText =
+    var fp = new File("test/babble.txt");
+    var raw = fp.read();
+    fp.close();
 
+    var bab = Textrix.Babble({ normalize: true});
+    bab.parseDocument(raw, "wsbwiki", "WSB Wikipedia Article");
+    var nums = bab.encodeTokens(bab._docs.wsbwiki.content);
+
+//    console.log(bab._dictionary._wordToNum);
+    console.log(bab._dictionary.statistics());
+
+
+
+    var end = bab._docs.wsbwiki.content.length - 3;
+    for(var i = 0; i < end; i++) {
+        var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
+        var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), true);
+        console.log(result);
+    }
+console.log("heckin");
+    //var ngrams = bab.ngramSearch("wsbwiki", ["have", "been"]);
+    //console.log(ngrams);
 }
 
 

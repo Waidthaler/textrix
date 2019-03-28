@@ -15,6 +15,10 @@ class Textrix {
         return new SimpleGrammar(options);
     }
 
+    static Babble(options) {
+        return new Babble(options);
+    }
+
 }
 
 
@@ -416,6 +420,7 @@ class Babble extends TextrixBase {
         this._outputFilter   = null;         // filter to use on output
         this._msgQueue       = null;         // callback to put messages in queue
         this._diagnostics    = false;
+        this._dictionary     = new Dictionary({ normalize: true });
 
     }
 
@@ -435,7 +440,7 @@ class Babble extends TextrixBase {
     parseDocument(content, docId, title = null, append = true, filter = true) {
 
         var startTime = new Date();
-        var tokens    = this.tokenize(content);
+        var tokens    = this.encodeTokens(this.tokenize(content));
         var endTime   = new Date();
         var runTime   = endTime - startTime;
 
@@ -447,7 +452,7 @@ class Babble extends TextrixBase {
             "Token rate:  " + (runTime / tokens.length) + " msec per token\n";
 
         if(this._docs[docId] === undefined) {
-            this._docs[docId]( { title: "", weight: 0.0, content: [ ], active: false } );
+            this._docs[docId] = { title: "", weight: 0.0, content: [ ], active: false };
             msg += "Created new document " + docId + ".\n";
         }
 
@@ -459,7 +464,7 @@ class Babble extends TextrixBase {
 
         if(append) {
             while(tokens.length) {
-                this._docs[docId].content.push(tokens.pop());
+                this._docs[docId].content.push(tokens.shift());
             }
             msg += "Appended input to existing document " + docId + " (" + this._docs[docId].title + ").\n";
         } else {
@@ -471,6 +476,18 @@ class Babble extends TextrixBase {
         }
     }
 
+
+    //--------------------------------------------------------------------------
+    // Takes an array of tokens as strings and returns an array of dictionary
+    // numbers, adding new entries as needed.
+    //--------------------------------------------------------------------------
+
+    encodeTokens(tokens) {
+        var result = [ ];
+        for(var t = 0; t < tokens.length; t++)
+            result.push(this._dictionary.wordToNum(tokens[t]));
+        return result;
+    }
 
     //--------------------------------------------------------------------------
     // Given a block of natural language text, tokenize() breaks it into tokens
@@ -536,21 +553,18 @@ class Babble extends TextrixBase {
     // which is duplicated to cover the four basic combinations.
     //--------------------------------------------------------------------------
 
-    ngramSearch(idx, ngram, exact, partial) {
+    ngramSearch(idx, ngram, exact = false, partial = false) {
+
         var tokens = this._docs[idx].content;
         var matches = [ ];
 
-        if(partial != undefined) {
+        if(partial) {
             for(var i = partial; i <= ngram.length; i++) {
                 matches[i] = [ ];
             }
         } else {
             matches[ngram.length] = [ ];
             partial = false;
-        }
-
-        if(exact == undefined) {
-            exact = false;
         }
 
         var startTime = new Date();
@@ -639,7 +653,10 @@ class Babble extends TextrixBase {
             debug(msg);
         }
 
-        return matches;
+        if(partial)
+            return matches;
+        else
+            return matches[ngram.length];
     }
 
 
@@ -736,6 +753,111 @@ class Babble extends TextrixBase {
 
 }
 
+
+//==============================================================================
+// Generic dictionary class.
+//==============================================================================
+
+class Dictionary extends TextrixBase {
+
+    constructor(options = { }) {
+        super(options);
+
+        this._normalize = options.normalize !== undefined ? options.normalize : false;
+
+        this._numToWord = [ ];
+        this._wordToNum = { };
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns the numeric value of a word, creating a new dictionary entry if
+    // necessary. If this._normalize, a normalized version is created as needed,
+    // but its value is not returned.
+    //--------------------------------------------------------------------------
+
+    wordToNum(word) {
+
+        word = word.toString();
+
+        if(this._wordToNum[word] === undefined) {
+            var num = this._numToWord.length;
+            this._wordToNum[word] = num;
+            this._numToWord[num] = word;
+
+            if(this._normalize) {
+                var normWord = word.toLocaleLowerCase();
+                if(word != normWord) {
+                    var num = this._numToWord.length;
+                    var num2 = this._numToWord.length;
+                    this._wordToNum[normWord] = num;
+                    this._numToWord[num] = normWord;
+                }
+            }
+
+            return num;
+        } else {
+            return this._wordToNum[word];
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    // Given an array of words, return the corresponding array of numbers.
+    //--------------------------------------------------------------------------
+
+    wordsToNums(words) {
+        var result = [ ];
+        for(var i = 0; i < words.length; i++)
+            result.push(this.wordToNum(words[i]));
+        return result;
+    }
+
+    //--------------------------------------------------------------------------
+    // Given an array of numbers, return the corresponding array of words.
+    //--------------------------------------------------------------------------
+
+    numsToWords(nums) {
+        var result = [ ];
+        for(var i = 0; i < nums.length; i++)
+            result.push(this.numToWord(nums[i]));
+        return result;
+    }
+
+    //--------------------------------------------------------------------------
+    // Given a word, returns its normalized index value.
+    //--------------------------------------------------------------------------
+
+    wordToNormNum(word) {
+        return this.wordToNum(word.toString().toLocaleLowerCase());
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns the word corresponding to the supplied integer, or undefined if
+    // not present in dictionary.
+    //--------------------------------------------------------------------------
+
+    numToWord(num) {
+        return this._numToWord[num];
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns the code for the normalized version of num, if it exists.
+    //--------------------------------------------------------------------------
+
+    nwordToNum(word) {
+        return this._wordToNum(num.toLocaleLowerCase());
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns an object containing dictionary stats.
+    //--------------------------------------------------------------------------
+
+    statistics() {
+        return {
+            tokenCount: this._numToWord.length
+        };
+    }
+
+}
 
 module.exports = Textrix;
 
