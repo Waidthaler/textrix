@@ -479,13 +479,14 @@ class Babble extends TextrixBase {
 
     //--------------------------------------------------------------------------
     // Takes an array of tokens as strings and returns an array of dictionary
-    // numbers, adding new entries as needed.
+    // indices, adding new entries as needed.
     //--------------------------------------------------------------------------
 
     encodeTokens(tokens) {
         var result = [ ];
         for(var t = 0; t < tokens.length; t++)
-            result.push(this._dictionary.wordToNum(tokens[t]));
+            result.push(this._dictionary.wordToIdx(tokens[t]));
+
         return result;
     }
 
@@ -541,6 +542,22 @@ class Babble extends TextrixBase {
 
 
     //--------------------------------------------------------------------------
+    // Searches the specified doc for matching ngrams.
+    //
+    //     doc ....... the index key from this._docs
+    //     ngram ..... an array of dictionary indices
+    //     options ... an object containing additional options:
+    //
+    // If no matches are found, boolean false is returned. If exact matching
+    // (the default) is used, an array of document offsets is returned. If
+    //
+    //--------------------------------------------------------------------------
+
+    ngramSearch(doc, ngram, options) {
+
+    }
+
+    //--------------------------------------------------------------------------
     // Searches this._docs[idx].content for a match of ngram, which is supplied as
     // an array of strings. If exact is true, no normalization is performed. If
     // the optional partial argument is supplied as an integer, matches down to
@@ -553,7 +570,7 @@ class Babble extends TextrixBase {
     // which is duplicated to cover the four basic combinations.
     //--------------------------------------------------------------------------
 
-    ngramSearch(idx, ngram, exact = false, partial = false) {
+    ngramSearch_Orig(idx, ngram, exact = false, partial = false) {
 
         var tokens = this._docs[idx].content;
         var matches = [ ];
@@ -765,86 +782,101 @@ class Dictionary extends TextrixBase {
 
         this._normalize = options.normalize !== undefined ? options.normalize : false;
 
-        this._numToWord = [ ];
-        this._wordToNum = { };
+        this._idxToWord = [ ];
+        this._wordToIdx = { };
     }
 
     //--------------------------------------------------------------------------
-    // Returns the numeric value of a word, creating a new dictionary entry if
+    // Returns the index of a word, creating a new dictionary entry if
     // necessary. If this._normalize, a normalized version is created as needed,
     // but its value is not returned.
     //--------------------------------------------------------------------------
 
-    wordToNum(word) {
+    _wordToIndex(word) {
 
         word = word.toString();
 
-        if(this._wordToNum[word] === undefined) {
-            var num = this._numToWord.length;
-            this._wordToNum[word] = num;
-            this._numToWord[num] = word;
+        if(this._wordToIdx[word] === undefined) {
+            var idx = this._idxToWord.length;
+            this._wordToIdx[word] = idx;
+            this._idxToWord[idx] = word;
 
             if(this._normalize) {
                 var normWord = word.toLocaleLowerCase();
                 if(word != normWord) {
-                    var num = this._numToWord.length;
-                    var num2 = this._numToWord.length;
-                    this._wordToNum[normWord] = num;
-                    this._numToWord[num] = normWord;
+                    var idx2 = this._idxToWord.length;
+                    this._wordToIdx[normWord] = idx2;
+                    this._idxToWord[idx2] = normWord;
                 }
             }
 
-            return num;
+            return idx;
         } else {
-            return this._wordToNum[word];
+            return this._wordToIdx[word];
         }
     }
 
     //--------------------------------------------------------------------------
-    // Given an array of words, return the corresponding array of numbers.
+    // Converts a word (or array of words) to an index (or array of indices)
     //--------------------------------------------------------------------------
 
-    wordsToNums(words) {
-        var result = [ ];
-        for(var i = 0; i < words.length; i++)
-            result.push(this.wordToNum(words[i]));
-        return result;
+    wordToIdx(word) {
+        if(Array.isArray(word)) {
+            var result = [ ];
+            for(var i = 0; i < word.length; i++)
+                result.push(this._wordToIndex(word[i]));
+            return result;
+        } else {
+            return this._wordToIndex(word);
+        }
     }
 
     //--------------------------------------------------------------------------
-    // Given an array of numbers, return the corresponding array of words.
+    // Given a word, returns its normalized index value. If word is an array,
+    // and array of ints will be returned.
     //--------------------------------------------------------------------------
 
-    numsToWords(nums) {
-        var result = [ ];
-        for(var i = 0; i < nums.length; i++)
-            result.push(this.numToWord(nums[i]));
-        return result;
+    wordToNormIdx(word) {
+        if(Array.isArray(word)) {
+            var result = [ ];
+            for(var i = 0; i < word.length; i++)
+                result.push(this._wordToIdx[word[i].toString().toLocaleLowerCase()]);
+            return result;
+        } else {
+            return this.wordToIdx(word.toString().toLocaleLowerCase());
+        }
     }
 
     //--------------------------------------------------------------------------
-    // Given a word, returns its normalized index value.
+    // Given an index or array of indices, return the normalized index or an
+    // array of normalized indices. Obviously -- though worth noting -- indices
+    // that already represent the normal form will come through unchanged.
     //--------------------------------------------------------------------------
 
-    wordToNormNum(word) {
-        return this.wordToNum(word.toString().toLocaleLowerCase());
+    idxToNormIdx(idx) {
+        if(Array.isArray(idx)) {
+            var result = this.idxToWord(idx);
+            return this.wordToNormIdx(result);
+        } else {
+            var word = this.idxToWord(idx);
+            return this.wordToNormIdx(result);
+        }
     }
 
     //--------------------------------------------------------------------------
-    // Returns the word corresponding to the supplied integer, or undefined if
-    // not present in dictionary.
+    // Given an index or array of indices, returns the word or array of words
+    // they encode.
     //--------------------------------------------------------------------------
 
-    numToWord(num) {
-        return this._numToWord[num];
-    }
-
-    //--------------------------------------------------------------------------
-    // Returns the code for the normalized version of num, if it exists.
-    //--------------------------------------------------------------------------
-
-    nwordToNum(word) {
-        return this._wordToNum(num.toLocaleLowerCase());
+    idxToWord(idx) {
+        if(Array.isArray(idx)) {
+            var result = [ ];
+            for(var i = 0; i < idx.length; i++)
+                result.push(this._idxToWord[idx[i]]);
+            return result;
+        } else {
+            return this._idxToWord[idx];
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -853,7 +885,7 @@ class Dictionary extends TextrixBase {
 
     statistics() {
         return {
-            tokenCount: this._numToWord.length
+            tokenCount: this._idxToWord.length
         };
     }
 

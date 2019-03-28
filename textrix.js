@@ -328,7 +328,7 @@ function test() {
     var raw = fp.read();
     fp.close();
 
-    var bab = Textrix.Babble({ normalize: true});
+    var bab = Textrix.Babble({ normalize: true });
     bab.parseDocument(raw, "wsbwiki", "WSB Wikipedia Article");
     var nums = bab.encodeTokens(bab._docs.wsbwiki.content);
 
@@ -340,12 +340,12 @@ function test() {
     var end = bab._docs.wsbwiki.content.length - 3;
     for(var i = 0; i < end; i++) {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
-        var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), true);
+        var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2);
         console.log(result);
     }
-console.log("heckin");
-    //var ngrams = bab.ngramSearch("wsbwiki", ["have", "been"]);
-    //console.log(ngrams);
+
+    var ngrams = bab.ngramSearch("wsbwiki", ["have", "been"]);
+    console.log(ngrams);
 }
 
 
