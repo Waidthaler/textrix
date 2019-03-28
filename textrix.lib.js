@@ -1,4 +1,5 @@
-var File = require("./file.js");
+var File     = require("./lib/file.js");
+const {dump} = require('dumper.js');
 
 //==============================================================================
 // Basically a factory class.
@@ -211,6 +212,7 @@ class SimpleGrammar extends TextrixBase {
         super(options);
 
         this._rules         = { };
+        this._rulesFile     = null;
         this._text          = [ ];
         this._maxTokens     = Infinity;
         this._maxIterations = Infinity;
@@ -226,6 +228,11 @@ class SimpleGrammar extends TextrixBase {
             } else {
                 this._text = this.textParse(options.text);
             }
+        }
+
+        if(options.rulesFile !== undefined) {
+            this._rulesFile = option.rulesFile;
+            this.rulesLoad(this._rulesFile);
         }
 
         if(options.maxTokens !== undefined)
@@ -276,7 +283,7 @@ class SimpleGrammar extends TextrixBase {
         tmp = tmp.split(/\n+/);
         var lines = [ ];
         while(tmp.length) {
-            var line = tmp.pop().replace(/\/\/.*/g, "").trim();
+            var line = tmp.shift().replace(/\/\/.*/g, "").trim();
             if(line.length)
                 lines.push(line);
         }
@@ -287,16 +294,16 @@ class SimpleGrammar extends TextrixBase {
         var currentNonterminal = null;
         var currentReplacements = [ ];
 
-        for(var i = 0; i < lines.length; i++) {
-            if(var match = lines[i].match(nonterminal)) {
+        for(var i = 0, match; i < lines.length; i++) {
+            if(match = lines[i].match(nonterminal)) {
                 if(currentNonterminal !== null && currentReplacements.length)
                     this.ruleSet(currentNonterminal, currentReplacements);
                 currentNonterminal = match[1];
                 currentReplacements = [ ];
 
-            } else if(var match = lines[i].match(replacement) && currentNonterminal !== null) {
+            } else if((match = lines[i].match(replacement)) && currentNonterminal !== null) {
                 var weight = match[2] === undefined ? 1 : parseInt(match[2]);
-                var str    = match[3];
+                var str    = this.textParse(match[3]);
 
                 if(isNaN(weight) || weight < 1)
                     error("fatal", "Invalid weight: " + lines[i], "SimpleGrammar.rulesLoad");
@@ -304,6 +311,8 @@ class SimpleGrammar extends TextrixBase {
                 currentReplacements.push([str, weight]);
             }
         }
+        if(currentNonterminal !== null && currentReplacements.length)
+            this.ruleSet(currentNonterminal, currentReplacements);
     }
 
     //--------------------------------------------------------------------------
@@ -311,6 +320,8 @@ class SimpleGrammar extends TextrixBase {
     //--------------------------------------------------------------------------
 
     getReplacement(nonterminal) {
+        if(this._rules[nonterminal] === undefined)
+            return nonterminal;
         var rule = this._rules[nonterminal];
         var num  = Math.floor(rule.sum * Math.random());
         for(var i = 0, sum = 0; i < rule.replacements.length; i++) {
@@ -323,11 +334,11 @@ class SimpleGrammar extends TextrixBase {
 
 
     //--------------------------------------------------------------------------
-    // Breaks an input text into tokens and stores it in this._text.
+    // Breaks an input text into tokens.
     //--------------------------------------------------------------------------
 
     textParse(text) {
-        this._text = text.trim().replace(/n't/g, "#NT#")
+        return text.trim().replace(/n't/g, "#NT#")
             .replace(/(\S+)'s/g, "$1#APOS#")
             .replace(/\n/g, " #CR# ")
             .replace(/([^#\[\]A-Za-z])/g, " $1 ")
@@ -343,26 +354,18 @@ class SimpleGrammar extends TextrixBase {
 
     rulesApply() {
         var rcnt = 0;
+        var text = [ ];
+
         for(var i = 0; i < this._text.length; i++) {
             if(this._text[i].substr(0, 1) == "[" && this._text[i].substr(-1) == "]") {
                 var replacement = this.getReplacement(this._text[i].substr(1, this._text[i].length - 2));
-                if(Array.isArray(replacement)) {
-                    this._text.splice(i, 1, replacement);
-                    for(var r = 1; r < replacement.length; r++) {
-                        this._text.splice(i + r, 0, replacement[r]);
-                    }
-                    rcnt++;
-                } else if(typeof replacement == "string") {
-                    this._text.splice(i, 1, replacement);
-                    rcnt++;
-                } else if(replacement === null) {
-                    this._text.splice(i, 1);
-                    rcnt++;
-                } else {
-                    throw new Error("Invalid replacement found in rulesApply.");
-                }
+                for(var j = 0; j < replacement.length; text.push(replacement[j++]));
+                 rcnt++;
+            } else {
+                text.push(this._text[i]);
             }
         }
+        this._text = text;
         return rcnt ? true : false;
     }
 
@@ -388,10 +391,353 @@ class SimpleGrammar extends TextrixBase {
     //--------------------------------------------------------------------------
 
     textFinalize() {
-        return this._text.join(" ");
+        var result = this._text.join(" ");
+        result = result.replace(/\s+([!\.\?:;,]+)/g, "$1");
+        return result;
+    }
+
+}
+
+
+//==============================================================================
+// This is the Babble clone class.
+//==============================================================================
+
+class Babble extends TextrixBase {
+
+    constructor(options = { }) {
+        super(options);
+
+        // The _docs object consists of named, parsed document objects, e.g.,
+        //     jones: { weight: 1.0, content: [ ], active: true, title, sort: 1 }
+
+        this._docs           = { };
+        this._inputFilter    = ['"'];        // array of tokens/regexps to purge from input
+        this._outputFilter   = null;         // filter to use on output
+        this._msgQueue       = null;         // callback to put messages in queue
+        this._diagnostics    = false;
+
+    }
+
+    //--------------------------------------------------------------------------
+    // Tokenizes a block of text and stores it in this._docs. The arguments are as
+    // follows:
+    //
+    //      content ... The string to be parsed.
+    //      docId ..... Object key for this._docs.
+    //      title...... If non-null, this is a string to be used as the title of
+    //                  the document.
+    //      append .... Boolean. If true, appends; if false, overwrites.
+    //      filter .... Boolean. Specifies whether to apply the current input
+    //                  filter settings.
+    //--------------------------------------------------------------------------
+
+    parseDocument(content, docId, title = null, append = true, filter = true) {
+
+        var startTime = new Date();
+        var tokens    = this.tokenize(content);
+        var endTime   = new Date();
+        var runTime   = endTime - startTime;
+
+        var msg = "@parseDocument([content], " + docId + ", " + title + ", " + append + ", " + filter + ");\n" +
+            "Input size:  " + content.length + " bytes\n" +
+            "Token count: " + tokens.length + "\n" +
+            "Run time:    " + Math.round(runTime / 1000) + " seconds (" + runTime + " msecs)\n" +
+            "Byte rate:   " + (runTime / content.length) + " msec per byte\n" +
+            "Token rate:  " + (runTime / tokens.length) + " msec per token\n";
+
+        if(this._docs[docId] === undefined) {
+            this._docs[docId]( { title: "", weight: 0.0, content: [ ], active: false } );
+            msg += "Created new document " + docId + ".\n";
+        }
+
+        if(title != null)
+            this._docs[docId].title = title;
+
+        if(filter)
+            tokens = this.purgeTokens(tokens, this._inputFilter);
+
+        if(append) {
+            while(tokens.length) {
+                this._docs[docId].content.push(tokens.pop());
+            }
+            msg += "Appended input to existing document " + docId + " (" + this._docs[docId].title + ").\n";
+        } else {
+            this._docs[docId].content = tokens;
+            msg += "Replaced content of document " + docId + " (" + this._docs[docId].title + ").\n";
+        }
+        if(this._diagnostics) {
+            debug(msg);
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Given a block of natural language text, tokenize() breaks it into tokens
+    // and returns it as an array.
+    //--------------------------------------------------------------------------
+
+    tokenize(txt) {
+
+        // Standardize quotes ------------------------------------------------------
+
+        txt = txt.replace(/\'\' /g, '" ');
+        txt = txt.replace(/ \`\`/g, ' "');
+        txt = txt.replace(/"/g, ' " ');
+
+        // Put space after any period followed by a non-number and non-period ------
+
+        txt = txt.replace(/\.([^0-9\.])/g, ". $1");
+
+        // Put space before any period that's followed by a space or another period,
+        // unless preceded by another period. The following space is introduced in
+        // the previous command.
+
+        txt = txt.replace(/([^\.])\.([ \.])/g, "$1 .$2");
+
+        // Put space around sequences of colons and commas, unless they're ---------
+        // surrounded by numbers or other colons and commas
+
+        txt = txt.replace(/([0-9:])\:([0-9:])/g, "$1<CLTKN>$2");
+        txt = txt.replace(/\:/g, " \: ");
+        txt = txt.replace(/([0-9]) ?<CLTKN> ?([0-9])/g, "$1\:$2");
+        txt = txt.replace(/([0-9,])\,([0-9,])/g, "$1<CMTKN>$2");
+        txt = txt.replace(/\,/g, " \, ");
+        txt = txt.replace(/([0-9]) ?<CMTKN> ?([0-9])/g, "$1\,$2");
+
+        // Put space before any other punctuation and special symbol sequences. ----
+
+    //     txt = txt.replace(/([^ !?;\")(\/&^%\$+#*\[\]{}><_\\|=`²³«»¢°-])(\1+)/g, "$1 $2");
+         txt = txt.replace(/([!?;\")(\/&^%\$+#*\[\]{}><_\\|=²³«»¢°-]+)([^ !?;\")(\/&^%\$+#*\[\]{}><_\\|=²³«»¢°-])/g, "$1 $2");
+
+        // separate alphabetical tokens --------------------------------------------
+        // FIXME -- catches accented characters!
+
+        txt = txt.replace(/([a-zA-Z]+\'?[a-zA-z]+)/g, " $1 ");
+
+        txt = txt.split(/\s+/);
+        if(!txt[0])
+            txt.shift();
+
+        return txt;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Searches this._docs[idx].content for a match of ngram, which is supplied as
+    // an array of strings. If exact is true, no normalization is performed. If
+    // the optional partial argument is supplied as an integer, matches down to
+    // partial size will be included. The result is structured thus:
+    //
+    //        matches[ngramSize][ offset1, offset2, offset3, ... ]
+    //
+    // Since this is the most computationally intensive part of the program,
+    // the conditionals for exact and partial are everted from the main loop,
+    // which is duplicated to cover the four basic combinations.
+    //--------------------------------------------------------------------------
+
+    ngramSearch(idx, ngram, exact, partial) {
+        var tokens = this._docs[idx].content;
+        var matches = [ ];
+
+        if(partial != undefined) {
+            for(var i = partial; i <= ngram.length; i++) {
+                matches[i] = [ ];
+            }
+        } else {
+            matches[ngram.length] = [ ];
+            partial = false;
+        }
+
+        if(exact == undefined) {
+            exact = false;
+        }
+
+        var startTime = new Date();
+
+        if(exact && partial) { //---------------------------------------------------
+
+            for(var i = 0; i < tokens.length; i++) {
+                if(tokens[i] == ngram[0]) {
+                    var mismatch = 0;
+                    for(var t = 1; t < ngram.length; t++) {
+                        if(ngram[t] != tokens[i + t]) {
+                            mismatch = t;
+                            break;
+                        }
+                    }
+                    if(!mismatch) {
+                        matches[ngram.length].push(i);
+                    } else if(mismatch >= partial) {
+                        matches[mismatch].push(i);
+                    }
+                }
+            }
+
+        } else if(exact && !partial) { //-------------------------------------------
+
+            for(var i = 0; i < tokens.length; i++) {
+                if(tokens[i] == ngram[0]) {
+                    var mismatch = false;
+                    for(var t = 1; t < ngram.length; t++) {
+                        if(ngram[t] != tokens[i + t]) {
+                            mismatch = true;
+                            break;
+                        }
+                    }
+                    if(!mismatch) {
+                        matches[ngram.length].push(i);
+                    }
+                }
+            }
+
+        } else if(!exact && partial) { //-------------------------------------------
+
+            for(var i = 0; i < tokens.length; i++) {
+                if(tokens[i].toLowerCase() == ngram[0]) {
+                    var mismatch = 0;
+                    for(var t = 1; t < ngram.length; t++) {
+                        if(ngram[t] != tokens[i + t].toLowerCase()) {
+                            mismatch = t;
+                            break;
+                        }
+                    }
+                    if(!mismatch) {
+                        matches[ngram.length].push(i);
+                    } else if(mismatch >= partial) {
+                        matches[mismatch].push(i);
+                    }
+                }
+            }
+
+        } else if(!exact && !partial) { //------------------------------------------
+
+            for(var i = 0; i < tokens.length; i++) {
+                if(tokens[i].toLowerCase() == ngram[0]) {
+                    var mismatch = false;
+                    for(var t = 1; t < ngram.length; t++) {
+                        if(ngram[t] != tokens[i + t].toLowerCase()) {
+                            mismatch = true;
+                            break;
+                        }
+                    }
+                    if(!mismatch) {
+                        matches[ngram.length].push(i);
+                    }
+                }
+            }
+
+        }
+
+        var endTime = new Date();
+        var runTime = endTime.getTime() - startTime.getTime();
+
+        if(this._diagnostics) {
+            var msg = "@ngramSearch(" + idx + ", [ " + ngram + "], " + exact + ", " + partial + ");\n" +
+                "Runtime: " + runTime + " msec\n" +
+                "Output: " + Dumper(matches) + "\n";
+            debug(msg);
+        }
+
+        return matches;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Returns an array containing the indices of this._docs where active is true,
+    // randomly ordered using their weights, i.e., the document with the highest
+    // weight is most likely but not guaranteed to come first, and the document
+    // with the lowest weight is most likely but not guaranteed to come last.
+    //--------------------------------------------------------------------------
+
+    // FIXME
+
+    documentOrdering() {
+        var docs = [ ];
+
+        for(var i in this._docs) {
+            if(this._docs[i].active) {
+                docs.push(i);
+            }
+        }
+
+        var docs = docs.sort( function(a, b) { return (Math.random() * this._docs[a].weight) - (Math.random() * this._docs[b].weight); } );
+
+        if(this._diagnostics) {
+            var msg = "@documentOrdering();\n" +
+                "Output: [ " + docs + "]\n";
+        }
+
+        return docs;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Given any array, returns a randomly sorted copy of it.
+    //--------------------------------------------------------------------------
+
+    randomSort(ary) {
+        var result = ary.slice(0);
+
+        for(var i = 0; i < 10; i++)
+            result.sort( function(a, b) { return Math.random() - Math.random(); } );
+
+        if(this._diagnostics) {
+            var msg = "@randomSort( [ " + ary + " ] );\n" +
+                "Output: [ " + result + " ]\n";
+        }
+
+        return result;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Takes an array of tokens and an array of strings and/or regular expressions
+    // and returns a copy of the first array with matching elements removed.
+    //--------------------------------------------------------------------------
+
+    purgeTokens(tokens, purge) {
+        var result = [ ];
+
+        if(purge.length == 0)
+            return tokens.slice(0);
+
+        for(var ti = 0; ti < tokens.length; ti++) {
+            var matched = false;
+            for(var pi = 0; pi < purge.length; pi++) {
+                if(purge[pi] instanceof RegExp) {
+                    if(tokens[ti].search(purge[pi]) != -1) {
+                        matched = true;
+                        break;
+                    }
+                } else {
+                    if(tokens[ti] == purge[pi]) {
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if(!matched) {
+                result.push(tokens[ti]);
+            }
+        }
+        return result;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Appends msg to the contents of the element with the id "debug_console" if it
+    // exists.
+    //--------------------------------------------------------------------------
+
+    debug(msg) {
+        console.log(msg);
     }
 
 }
 
 
 module.exports = Textrix;
+
+
+

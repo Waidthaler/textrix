@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 const version   = "0.0.1";
-const verbosity = 1;
+var   verbosity = 1;
 
 const Textrix = require("./textrix.lib.js");
 const minicle = require("minicle");
 const ac      = require("ansi-colors");
 const File    = require("./lib/file.js");
+const {dump}  = require('dumper.js');
 
 main();
 
@@ -27,15 +28,16 @@ function main() {
         },
         babble: {
             "infile":   { short: "i", vals: [ ] },
+            "count":    { short: "c", vals: [ ] },
         },
         "@all": {
-            debug:   { short: "d", cnt: 0 },
-            help:    { short: "h", cnt: 0 },
-            quiet:   { short: "q", cnt: 0 },
-            verbose: { short: "v", cnt: 0 },
+            debug:      { short: "d", cnt: 0 },
+            help:       { short: "h", cnt: 0 },
+            quiet:      { short: "q", cnt: 0 },
+            verbose:    { short: "v", cnt: 0 },
         },
         "@none": {
-            help:    { short: "h", cnt: 0 },
+            help:       { short: "h", cnt: 0 },
         },
 
     };
@@ -82,6 +84,74 @@ function main() {
 
 }
 
+
+//==============================================================================
+// Entry point for quasi-Markov chain generation.
+//==============================================================================
+
+function doBabble(options) {
+    error("fatal", "doBabble is not implemented yet.", "doBabble");
+}
+
+
+//==============================================================================
+// Entry point for grammar execution.
+//==============================================================================
+
+function doGrammar(options) {
+
+    error("warn", "doGrammar is under construction.", "doGrammar");
+
+    // Parameter validation ----------------------------------------------------
+
+    var opts = { };   // options for SimpleGrammar constructor
+
+    if(options.grammar.vals.length == 0)
+        error("fatal", "No input file(s) specified.", "doGrammar");
+
+    if(options.text.vals.length == 0)
+        error("fatal", "No working text template specified.", "doGrammar");
+
+    if(options.tokens.vals.length > 0) {
+        let tcnt = parseInt(options.tokens.vals[0]);
+        if(isNaN(tcnt) || tcnt < 1)
+            error("fatal", "The maximum token count must be a positive integer.", "doGrammar");
+        opts.maxTokens = tcnt;
+    }
+
+    if(options.iter.vals.length > 0) {
+        let iter = parseInt(options.iter.vals[0]);
+        if(isNaN(iter) || iter < 1)
+            error("fatal", "The maximum iteration count must be a positive integer.", "doGrammar");
+        opts.maxIterations = tcnt;
+    }
+
+    // Load grammar and working text files -------------------------------------
+
+    var fp = new File(options.text.vals[0], "r");
+    if(!fp.open)
+        error("fatal", "Unable to open text template file \"" + options.text.vals[0] + "\" for reading.");
+    var rawText = fp.read();
+    fp.close();
+
+    var sg = Textrix.SimpleGrammar({ text: rawText });
+    if(verbosity == 4) {
+        error("debug", "sg._text dump follows", "doGrammar");
+        dump(sg._text);
+    }
+
+    sg.rulesLoad(options.grammar.vals[0]);
+    if(verbosity == 4) {
+        error("debug", "sg._rules dump follows:", "doGrammar");
+        dump(sg._rules);
+    }
+
+    // Iterate transformations and output --------------------------------------
+
+    sg.transform();
+    console.log(sg.textFinalize());
+
+}
 
 //==============================================================================
 // Entry point for chain generation.
@@ -172,60 +242,6 @@ function doChain(options) {
 
 
 //==============================================================================
-// Entry point for grammar execution.
-//==============================================================================
-
-function doGrammar(options) {
-
-    error("warn", "doGrammar is under construction.", "doGrammar");
-
-    // Parameter validation ----------------------------------------------------
-
-    var opts = { };   // options for SimpleGrammar constructor
-
-    if(options.grammar.vals.length == 0)
-        error("fatal", "No input file(s) specified.", "doGrammar");
-
-    if(options.text.vals.length == 0)
-        error("fatal", "No working text template specified.", "doGrammar");
-
-    if(options.tokens.vals.length > 0) {
-        let tcnt = parseInt(options.tokens.vals[0]);
-        if(isNaN(tcnt) || tcnt < 1)
-            error("fatal", "The maximum token count must be a positive integer.", "doGrammar");
-        opts.maxTokens = tcnt;
-    }
-
-    if(options.iter.vals.length > 0) {
-        let iter = parseInt(options.iter.vals[0]);
-        if(isNaN(iter) || iter < 1)
-            error("fatal", "The maximum iteration count must be a positive integer.", "doGrammar");
-        opts.maxIterations = tcnt;
-    }
-
-    // Load grammar and working text files -------------------------------------
-
-    var fp = new File(options.text.vals[0], "r");
-    if(!fp.open)
-        error("fatal", "Unable to open text template file \"" + options.text.vals[0] + "\" for reading.");
-    var rawText = fp.read();
-    fp.close();
-
-    // This will be a lot easier if we define a file format. Ahem.
-
-
-}
-
-//==============================================================================
-// Entry point for quasi-Markov chain generation.
-//==============================================================================
-
-function doBabble(options) {
-    error("fatal", "doBabble is not implemented yet.", "doBabble");
-}
-
-
-//==============================================================================
 // Outputs the runtime header to console. This will become progressively more
 // ostentatious and ridiculous as time goes by.
 //==============================================================================
@@ -259,7 +275,8 @@ function usage(exit = true) {
         + ac.yellow.bold("    -T") + ac.yellow(", ") + ac.yellow.bold("--tokens        ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of tokens.\n")
         + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--iter          ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Maximum number of iterations.\n\n")
         + ac.green.bold(" cmd: babble --------------------------------------------------------------\n\n")
-        + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--infile        ") + ac.blue.bold("<filename(s)>  ") + ac.cyan.bold("Path to input file(s).\n\n")
+        + ac.yellow.bold("    -i") + ac.yellow(", ") + ac.yellow.bold("--infile        ") + ac.blue.bold("<file/name/wt> ") + ac.cyan.bold("Input file, name, and weight.\n\n")
+        + ac.yellow.bold("    -c") + ac.yellow(", ") + ac.yellow.bold("--count         ") + ac.blue.bold("<number>       ") + ac.cyan.bold("Number of sentences to generate.\n")
         + ac.green.bold(" General options-----------------------------------------------------------\n\n")
         + ac.yellow.bold("    -v") + ac.yellow(", ") + ac.yellow.bold("--verbose       ") + ac.blue.bold("               ") + ac.cyan.bold("Increase verbosity (1-4).\n")
         + ac.yellow.bold("    -q") + ac.yellow(", ") + ac.yellow.bold("--quiet         ") + ac.blue.bold("               ") + ac.cyan.bold("Suppress console output.\n")
@@ -306,38 +323,7 @@ function error(level, message, location = "TEXTRIX") {
 
 function test() {
 
-    var links = [
-        [ 0, "The", 1],
-        [ 0, "A",   1],
-
-        [ 1, "Duchess", 2 ],
-        [ 1, "Bishop",  2 ],
-        [ 1, "Cafe",    2 ],
-
-        [ 2, "of Denmark",     3 ],
-        [ 2, "in Distress",    3 ],
-        [ 2, "without Qualms", 3 ],
-    ];
-
-    var tc = Textrix.TagChain({ start: 0, maxSize: 10 });
-
-    tc.linksAdd(links);
-
-    // console.log(tc._cfg.links);
-
-    for(var i = 0; i < 10; i++)
-        console.log(tc.getChain().join(" "));
-
-    //--------------------------------------------------------------
-
-    var sg = Textrix.SimpleGrammar();
-
-    var text = "I am a little [ware]";
-
-    sg.textParse(text);
-    sg.ruleSet("ware", [["teapot", 2], ["program", 1]]);
-    sg.transform();
-    console.log(sg.textFinalize());
+    var someText =
 
 }
 
@@ -346,9 +332,9 @@ function test() {
 
 TODO:
 
-    * tokenize replacements
+    * Add out-of-band message channels to TextrixBase for errors, debugging, etc.
+    * Add token dictionary to Babble
+    * add freeze/universal option for nonterminals
     * output file or stdout
-    * import stuff from V implementation for babble
-
 
 */
