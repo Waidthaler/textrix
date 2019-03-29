@@ -546,15 +546,77 @@ class Babble extends TextrixBase {
     //
     //     doc ....... the index key from this._docs
     //     ngram ..... an array of dictionary indices
-    //     options ... an object containing additional options:
+    //     fallback .. the minimum number of tokens to fall back to
+    //     norm ...... allow normalized fuzzy matches
     //
-    // If no matches are found, boolean false is returned. If exact matching
-    // (the default) is used, an array of document offsets is returned. If
-    //
+    // If no matches are found, boolean false is returned.
     //--------------------------------------------------------------------------
 
-    ngramSearch(doc, ngram, options) {
+    ngramSearch(doc, ngram, fallback = false, norm = false) {
 
+        if(!fallback)
+            fallback = ngram.length;
+
+        var maxLength = ngram.length;
+
+        ngram = ngram.slice(0);  // max local, mutable copy
+
+        var matches    = [ ];
+
+        for(var i = 0; i <= ngram.length; i++)
+            matches[i] = [ ];
+
+        var content = this._docs[doc].content;
+
+        for(var len = ngram.length; len >= fallback; len--) {  // loop through allowed ngram lengths
+
+            // At this level, we are looping through shorter and shorter ngrams
+            // within the limits imposed by fallback. We start by trimming the
+            // beginning of the ngram array until it equals the current value of
+            // len.
+
+            var subgram = ngram.slice(0);
+            while(subgram.length > len)
+                subgram.shift();
+
+
+            // If we're allowing normalized matches, we go ahead and create a
+            // normalized version of the ngram.
+
+            if(norm) {
+                var normgram = this._dictionary.idxToNormIdx(subgram);
+            }
+
+            var end = content.length - subgram.length;
+            for(var t = 0; t < end; t++) {
+
+                // At this level, we're looping through the array of indices
+                // encoded in the doc. In the inner loop(s) below, we check
+                // at each position to see if we have a match with the ngram
+                // and, if norm is enabled, the normalized ngram.
+
+                // The search is a brute-force linear search that can and should
+                // be optimized to use something like a Boyer-Moore search later.
+
+                var match = true;
+                for(var m = 0; m < subgram.length; m++) {
+                    if(content[t + m] != subgram[m] && (!norm || content[t + m] != normgram[m])) {
+                        match = false;
+                        break;
+                    }
+                }
+                if(match) {
+                    matches[subgram.length].push(t);
+                }
+
+            }
+        }
+
+        for(var i = 0; i < matches.length; i++)
+            if(matches[i].length == 0)
+                matches[i] = null;
+
+        return matches;
     }
 
     //--------------------------------------------------------------------------
