@@ -338,14 +338,28 @@ function test() {
 
 
     var end = bab._docs.wsbwiki.content.length - 3;
+    end = 200;
+    var totals = [ 0, 0, 0, 0 ];
     for(var i = 0; i < end; i++) {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
-        var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2);
-        console.log(result);
-    }
+        var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2, true);
+        if(result) {
+            console.log(result);
+            var cnts = [ ];
+            for(var j = 0; j < result.length; j++) {
+                if(result[j] == null) {
+                    cnts[j] = null;
+                } else {
+                    cnts[j] = result[j].length;
+                    totals[j] += result[j].length;
+                }
+            }
+            console.log(cnts);
 
-    var ngrams = bab.ngramSearch("wsbwiki", ["have", "been"]);
-    console.log(ngrams);
+        }
+    }
+    console.log(totals);
+
 }
 
 

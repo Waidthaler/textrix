@@ -544,137 +544,79 @@ class Babble extends TextrixBase {
     //--------------------------------------------------------------------------
     // Searches the specified doc for matching ngrams.
     //
-    //     doc ......... the index key from this._docs
-    //     ngram ....... an array of dictionary indices
-    //     normalized... boolean, use normalized matching, default false
+    //     doc ....... the index key from this._docs
+    //     ngram ..... an array of dictionary indices
+    //     fallback .. the minimum number of tokens to fall back to
+    //     norm ...... allow normalized fuzzy matches
     //
-    //
-    // If no matches are found, boolean false is returned. If exact matching
-    // (the default) is used, an array of document offsets is returned. If
-    //
+    // If no matches are found, boolean false is returned.
     //--------------------------------------------------------------------------
 
-    ngramSearch(doc, ngram, options) {
+    ngramSearch(doc, ngram, fallback = false, norm = false) {
 
-    }
+        if(!fallback)
+            fallback = ngram.length;
 
-    //--------------------------------------------------------------------------
-    // Searches this._docs[idx].content for a match of ngram, which is supplied as
-    // an array of strings. If exact is true, no normalization is performed. If
-    // the optional partial argument is supplied as an integer, matches down to
-    // partial size will be included. The result is structured thus:
-    //
-    //        matches[ngramSize][ offset1, offset2, offset3, ... ]
-    //
-    // Since this is the most computationally intensive part of the program,
-    // the conditionals for exact and partial are everted from the main loop,
-    // which is duplicated to cover the four basic combinations.
-    //--------------------------------------------------------------------------
+        var maxLength = ngram.length;
 
-    ngramSearch_Orig(idx, ngram, exact = false, partial = false) {
+        ngram = ngram.slice(0);  // max local, mutable copy
 
-        var tokens = this._docs[idx].content;
-        var matches = [ ];
+        var matches    = [ ];
 
-        if(partial) {
-            for(var i = partial; i <= ngram.length; i++) {
-                matches[i] = [ ];
+        for(var i = 0; i <= ngram.length; i++)
+            matches[i] = [ ];
+
+        var content = this._docs[doc].content;
+
+        for(var len = ngram.length; len >= fallback; len--) {  // loop through allowed ngram lengths
+
+            // At this level, we are looping through shorter and shorter ngrams
+            // within the limits imposed by fallback. We start by trimming the
+            // beginning of the ngram array until it equals the current value of
+            // len.
+
+            var subgram = ngram.slice(0);
+            while(subgram.length > len)
+                subgram.shift();
+
+
+            // If we're allowing normalized matches, we go ahead and create a
+            // normalized version of the ngram.
+
+            if(norm) {
+                var normgram = this._dictionary.idxToNormIdx(subgram);
             }
-        } else {
-            matches[ngram.length] = [ ];
-            partial = false;
+
+            var end = content.length - subgram.length;
+            for(var t = 0; t < end; t++) {
+
+                // At this level, we're looping through the array of indices
+                // encoded in the doc. In the inner loop(s) below, we check
+                // at each position to see if we have a match with the ngram
+                // and, if norm is enabled, the normalized ngram.
+
+                // The search is a brute-force linear search that can and should
+                // be optimized to use something like a Boyer-Moore search later.
+
+                var match = true;
+                for(var m = 0; m < subgram.length; m++) {
+                    if(content[t + m] != subgram[m] && (!norm || content[t + m] != normgram[m])) {
+                        match = false;
+                        break;
+                    }
+                }
+                if(match) {
+                    matches[subgram.length].push(t);
+                }
+
+            }
         }
 
-        var startTime = new Date();
+        for(var i = 0; i < matches.length; i++)
+            if(matches[i].length == 0)
+                matches[i] = null;
 
-        if(exact && partial) { //---------------------------------------------------
-
-            for(var i = 0; i < tokens.length; i++) {
-                if(tokens[i] == ngram[0]) {
-                    var mismatch = 0;
-                    for(var t = 1; t < ngram.length; t++) {
-                        if(ngram[t] != tokens[i + t]) {
-                            mismatch = t;
-                            break;
-                        }
-                    }
-                    if(!mismatch) {
-                        matches[ngram.length].push(i);
-                    } else if(mismatch >= partial) {
-                        matches[mismatch].push(i);
-                    }
-                }
-            }
-
-        } else if(exact && !partial) { //-------------------------------------------
-
-            for(var i = 0; i < tokens.length; i++) {
-                if(tokens[i] == ngram[0]) {
-                    var mismatch = false;
-                    for(var t = 1; t < ngram.length; t++) {
-                        if(ngram[t] != tokens[i + t]) {
-                            mismatch = true;
-                            break;
-                        }
-                    }
-                    if(!mismatch) {
-                        matches[ngram.length].push(i);
-                    }
-                }
-            }
-
-        } else if(!exact && partial) { //-------------------------------------------
-
-            for(var i = 0; i < tokens.length; i++) {
-                if(tokens[i].toLowerCase() == ngram[0]) {
-                    var mismatch = 0;
-                    for(var t = 1; t < ngram.length; t++) {
-                        if(ngram[t] != tokens[i + t].toLowerCase()) {
-                            mismatch = t;
-                            break;
-                        }
-                    }
-                    if(!mismatch) {
-                        matches[ngram.length].push(i);
-                    } else if(mismatch >= partial) {
-                        matches[mismatch].push(i);
-                    }
-                }
-            }
-
-        } else if(!exact && !partial) { //------------------------------------------
-
-            for(var i = 0; i < tokens.length; i++) {
-                if(tokens[i].toLowerCase() == ngram[0]) {
-                    var mismatch = false;
-                    for(var t = 1; t < ngram.length; t++) {
-                        if(ngram[t] != tokens[i + t].toLowerCase()) {
-                            mismatch = true;
-                            break;
-                        }
-                    }
-                    if(!mismatch) {
-                        matches[ngram.length].push(i);
-                    }
-                }
-            }
-
-        }
-
-        var endTime = new Date();
-        var runTime = endTime.getTime() - startTime.getTime();
-
-        if(this._diagnostics) {
-            var msg = "@ngramSearch(" + idx + ", [ " + ngram + "], " + exact + ", " + partial + ");\n" +
-                "Runtime: " + runTime + " msec\n" +
-                "Output: " + Dumper(matches) + "\n";
-            debug(msg);
-        }
-
-        if(partial)
-            return matches;
-        else
-            return matches[ngram.length];
+        return matches;
     }
 
 
