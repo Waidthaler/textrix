@@ -544,9 +544,10 @@ class Babble extends TextrixBase {
     //--------------------------------------------------------------------------
     // Searches the specified doc for matching ngrams.
     //
-    //     doc ....... the index key from this._docs
-    //     ngram ..... an array of dictionary indices
-    //     options ... an object containing additional options:
+    //     doc ......... the index key from this._docs
+    //     ngram ....... an array of dictionary indices
+    //     normalized... boolean, use normalized matching, default false
+    //
     //
     // If no matches are found, boolean false is returned. If exact matching
     // (the default) is used, an array of document offsets is returned. If
