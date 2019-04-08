@@ -335,15 +335,16 @@ function test() {
 //    console.log(bab._dictionary._wordToNum);
     console.log(bab._dictionary.statistics());
 
-
+//return;
 
     var end = bab._docs.wsbwiki.content.length - 3;
-    end = 200;
+//    end = 200;
     var totals = [ 0, 0, 0, 0 ];
     for(var i = 0; i < end; i++) {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
         var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2, true);
         if(result) {
+            console.log("RESULT =============");
             console.log(result);
             var cnts = [ ];
             for(var j = 0; j < result.length; j++) {
@@ -352,9 +353,16 @@ function test() {
                 } else {
                     cnts[j] = result[j].length;
                     totals[j] += result[j].length;
+                    for(var k = 0; k < result[j].length; k++) {
+                        if(result[j][k] === undefined || result[j][k] === null)
+                            console.log("    (null)");
+                        else
+                            dump_ngram_from(bab, result[j][k], 3);
+                    }
+//
                 }
             }
-            console.log(cnts);
+            console.log("COUNTS:" + cnts.join(", "));
 
         }
     }
@@ -362,13 +370,18 @@ function test() {
 
 }
 
+function dump_ngram_from(bab, pos, len) {
+    var ngram = bab._docs.wsbwiki.content.slice(pos, pos + len);
+    ngram = bab._dictionary.idxToWord(ngram);
+    console.log("NGRAM: " + ngram.join(" "));
+}
 
 /*
 
 TODO:
 
     * Add out-of-band message channels to TextrixBase for errors, debugging, etc.
-    * Add token dictionary to Babble
+    * Add token dictionary to Babble [...]
     * add freeze/universal option for nonterminals
     * output file or stdout
 
