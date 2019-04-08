@@ -342,6 +342,7 @@ function test() {
     var totals = [ 0, 0, 0, 0 ];
     for(var i = 0; i < end; i++) {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
+        dump_ngram(bab, trigram);
         var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2, true);
         if(result) {
             console.log("RESULT =============");
@@ -357,7 +358,7 @@ function test() {
                         if(result[j][k] === undefined || result[j][k] === null)
                             console.log("    (null)");
                         else
-                            dump_ngram_from(bab, result[j][k], 3);
+                            dump_ngram_from(bab, result[j][k], j);
                     }
 //
                 }
@@ -370,10 +371,15 @@ function test() {
 
 }
 
+function dump_ngram(bab, ngram) {
+    ngram = bab._dictionary.idxToWord(ngram);
+    console.log("MASTER " + ngram.length + "-GRAM: " + ngram.join(" "));
+}
+
 function dump_ngram_from(bab, pos, len) {
     var ngram = bab._docs.wsbwiki.content.slice(pos, pos + len);
     ngram = bab._dictionary.idxToWord(ngram);
-    console.log("NGRAM: " + ngram.join(" "));
+    console.log(len + "-GRAM: " + ngram.join(" "));
 }
 
 /*
