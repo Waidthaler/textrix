@@ -332,23 +332,20 @@ function test() {
     bab.parseDocument(raw, "wsbwiki", "WSB Wikipedia Article");
     var nums = bab.encodeTokens(bab._docs.wsbwiki.content);
 
-//    console.log(bab._dictionary._wordToNum);
-    console.log(bab._dictionary.statistics());
+//    console.log(bab._dict._wordToNum);
+    console.log(bab._dict.statistics());
 
-
+//return;
 
     var end = bab._docs.wsbwiki.content.length - 3;
-    end = 200;
+//    end = 200;
     var totals = [ 0, 0, 0, 0 ];
     for(var i = 0; i < end; i++) {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
+        dump_ngram(bab, trigram);
         var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2, true);
         if(result) {
-            for(var ch = 0; ch < result.length; ch++) {
-                if(result[ch] !== null) {
-
-                }
-            }
+            console.log("RESULT =============");
             console.log(result);
             var cnts = [ ];
             for(var j = 0; j < result.length; j++) {
@@ -357,24 +354,48 @@ function test() {
                 } else {
                     cnts[j] = result[j].length;
                     totals[j] += result[j].length;
+                    for(var k = 0; k < result[j].length; k++) {
+                        if(result[j][k] === undefined || result[j][k] === null)
+                            console.log("    (null)");
+                        else
+                            dump_ngram_from(bab, result[j][k], j);
+                    }
+//
                 }
             }
-            console.log(cnts);
+            console.log("COUNTS:" + cnts.join(", "));
 
         }
     }
-    console.log(totals);
+    console.log("TOTALS: " + totals.join(", "));
+
+    for(i = 0; i < 25; i++) {
+        var result = bab.findStartOfSentence("wsbwiki", 3);
+        if(result)
+            result = bab._dict.idxToWord(result).join(" ");
+        console.log(result);
+    }
 
 
 }
 
+function dump_ngram(bab, ngram) {
+    ngram = bab._dict.idxToWord(ngram);
+    console.log("MASTER " + ngram.length + "-GRAM: " + ngram.join(" "));
+}
+
+function dump_ngram_from(bab, pos, len) {
+    var ngram = bab._docs.wsbwiki.content.slice(pos, pos + len);
+    ngram = bab._dict.idxToWord(ngram);
+    console.log(len + "-GRAM: " + ngram.join(" "));
+}
 
 /*
 
 TODO:
 
     * Add out-of-band message channels to TextrixBase for errors, debugging, etc.
-    * Add token dictionary to Babble
+    * Add token dictionary to Babble [...]
     * add freeze/universal option for nonterminals
     * output file or stdout
 

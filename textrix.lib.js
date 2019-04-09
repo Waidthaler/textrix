@@ -420,7 +420,7 @@ class Babble extends TextrixBase {
         this._outputFilter   = null;         // filter to use on output
         this._msgQueue       = null;         // callback to put messages in queue
         this._diagnostics    = false;
-        this._dictionary     = new Dictionary({ normalize: true });
+        this._dict           = new Dictionary({ normalize: true });
 
     }
 
@@ -485,7 +485,7 @@ class Babble extends TextrixBase {
     encodeTokens(tokens) {
         var result = [ ];
         for(var t = 0; t < tokens.length; t++)
-            result.push(this._dictionary.wordToIdx(tokens[t]));
+            result.push(this._dict.wordToIdx(tokens[t]));
 
         return result;
     }
@@ -584,7 +584,7 @@ class Babble extends TextrixBase {
             // normalized version of the ngram.
 
             if(norm) {
-                var normgram = this._dictionary.idxToNormIdx(subgram);
+                var normgram = this._dict.idxToNormIdx(subgram);
             }
 
             var end = content.length - subgram.length;
@@ -617,6 +617,82 @@ class Babble extends TextrixBase {
                 matches[i] = null;
 
         return matches;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Constructs a sentence.
+    //
+    //     docIds...... array of document ids to search in order.
+    //     n .......... preferred ngram overlap length
+    //     m .......... minimum overlap length
+    //     sentence ... an array, possibly empty, of dictionary indices.
+    //     limit ...... maximum number of words in sentence.
+    //
+    // The sentence array is altered in place. The return value is a boolean
+    // indicating success (sentence completion) or failure.
+    //--------------------------------------------------------------------------
+
+    // TODO
+
+    sentenceBuild(docs, n, m, sentence, limit) {
+
+        // If sentence is empty, find an initial ngram -------------------------
+
+        if(sentence.length == 0) {
+
+        }
+
+
+        while(sentence.length < limit) {
+
+            // find overlapping ngrams
+            // select random ngram, preferring those closer to n
+            // copy new words to sentence, bailing early if sentence complete
+
+        }
+
+        return true;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Given a document ID, return n words at the beginning of a random sentence
+    // therein. For our purposes, the beginning of a sentence is the first word
+    // beginning with a letter following one of .,'"?!
+    //
+    // Returns boolean false if unable to find a suitable ngram.
+    //--------------------------------------------------------------------------
+
+    findStartOfSentence(docId, n) {
+        var doc = this._docs[docId];
+        if(doc === undefined)
+            throw new Error("Undefined document \"" + docId + ".");
+        doc = doc.content;
+
+        var offset = Math.floor(Math.random() * doc.length);
+        var current = (offset + 1) % doc.length;
+
+        var nextWord = false;
+        do {
+            current++;
+            if(current == doc.length - n)
+                current = 0;
+            var word = this._dict.idxToWord(doc[current]);
+            if(nextWord) {
+                if(word.match(/^[A-Za-z]/) && current < doc.length - (n - 1)) {
+                    return doc.slice(current, current + n);
+                } else {
+                    nextWord = false;
+                }
+            }
+            if(word == "." || word == "," || word == "'" || word == '"' || word == "?" || word == "!") {
+                nextWord = true;
+                continue;
+            }
+        } while(current != offset);
+
+        return false;
     }
 
 
