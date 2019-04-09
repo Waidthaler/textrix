@@ -332,8 +332,8 @@ function test() {
     bab.parseDocument(raw, "wsbwiki", "WSB Wikipedia Article");
     var nums = bab.encodeTokens(bab._docs.wsbwiki.content);
 
-//    console.log(bab._dictionary._wordToNum);
-    console.log(bab._dictionary.statistics());
+//    console.log(bab._dict._wordToNum);
+    console.log(bab._dict.statistics());
 
 //return;
 
@@ -367,18 +367,25 @@ function test() {
 
         }
     }
-    console.log(totals);
+    console.log("TOTALS: " + totals.join(", "));
+
+    for(i = 0; i < 25; i++) {
+        var result = bab.findStartOfSentence("wsbwiki", 3);
+        if(result)
+            result = bab._dict.idxToWord(result).join(" ");
+        console.log(result);
+    }
 
 }
 
 function dump_ngram(bab, ngram) {
-    ngram = bab._dictionary.idxToWord(ngram);
+    ngram = bab._dict.idxToWord(ngram);
     console.log("MASTER " + ngram.length + "-GRAM: " + ngram.join(" "));
 }
 
 function dump_ngram_from(bab, pos, len) {
     var ngram = bab._docs.wsbwiki.content.slice(pos, pos + len);
-    ngram = bab._dictionary.idxToWord(ngram);
+    ngram = bab._dict.idxToWord(ngram);
     console.log(len + "-GRAM: " + ngram.join(" "));
 }
 
