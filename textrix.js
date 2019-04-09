@@ -344,6 +344,11 @@ function test() {
         var trigram = bab._docs.wsbwiki.content.slice(i, i + 3);
         var result = bab.ngramSearch("wsbwiki", bab._docs.wsbwiki.content.slice(i, i + 3), 2, true);
         if(result) {
+            for(var ch = 0; ch < result.length; ch++) {
+                if(result[ch] !== null) {
+
+                }
+            }
             console.log(result);
             var cnts = [ ];
             for(var j = 0; j < result.length; j++) {
@@ -359,6 +364,7 @@ function test() {
         }
     }
     console.log(totals);
+
 
 }
 
