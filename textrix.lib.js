@@ -639,6 +639,10 @@ class Babble extends TextrixBase {
 
         // If sentence is empty, find an initial ngram -------------------------
 
+        if(sentence.length == 0) {
+
+        }
+
 
         while(sentence.length < limit) {
 
